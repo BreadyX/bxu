@@ -1,16 +1,16 @@
 #!/bin/bash
 #
 # File: gitsum
-# Version: 12.2018.1
+# Version: 2.2019.2
 # Author: BreadyX
 #
 # Small script that prints formatted information about the git repository opened
 #
 
-CUR_VER=$( sed '4q;d' ~/.local/bin/gitsum | cut -d ' ' -f3)
+CUR_VER='2.2019.2'
 
 function makeprompt {
-	#REPO="$(git config --get remote.origin.url | cut -d "/" --fields="$(seq --separator=" " 3 100)")"
+	# REPO="$(git config --get remote.origin.url | cut -d "/" --fields="$(seq --separator=" " 3 100)")"
 	if [ $(git branch | wc -l) -ge 1 ]; then
 		BRANCH="$(git branch | grep "\*" | cut -d " " -f2)"
 	else
