@@ -1,0 +1,83 @@
+#! /bin/bash
+#
+# File: autorm
+# Version: 12.2018.0
+# Author: BreadyX
+#
+# Simple shell script that handles removing unused packages/flatpaks. It offers
+# some functionality that can be integrated in prompt (autorm -c)
+#
+
+CUR_VER=$( sed '4q;d' ~/.local/bin/confh | cut -d ' ' -f3)
+
+STEP=600
+PACN=0
+
+case $1 in
+	"")
+		sudo pacman -Rns --noconfirm $(pacman -Qdtq) 2> /dev/null
+		flatpak uninstall --unused
+		exit 0
+		;;
+	"-a"|"--all")
+		sudo pacman -Rns --noconfirm $(pacman -Qdtq) 2> /dev/null
+		flatpak uninstall --unused
+		exit 0
+		;;
+	"-p"|"--pacman")
+		sudo pacman -Rns --noconfirm $(pacman -Qdtq) 2> /dev/null
+		exit 0
+		;;
+	"-f"|"--flatpak")
+		flatpak uninstall --unused
+		exit 0
+		;;
+	"-c"|"--count")
+		if [ -f ~/.cache/autorm.cache ]; then
+			CUR_TIME="$(date +%s)"
+			read -r PREV_TIME < <(sed '1q;d' ~/.cache/autorm.cache)
+			if [ $(( CUR_TIME - PREV_TIME )) -ge $STEP ]; then
+				PACARR=( $(pacman -Qdtq) )
+				PACN=${#PACARR[@]}
+				echo -e "$CUR_TIME\n$PACN" > ~/.cache/autorm.cache
+			else
+				PACN=$(sed '2q;d' ~/.cache/autorm.cache)
+			fi
+			echo "Unused: $PACN"
+		else
+			date +%s > ~/.cache/autorm.cache
+			PACARR=( $(pacman -Qdtq) )
+			PACN=${#PACARR[@]}
+			echo "$PACN" >> ~/.cache/autorm.cache
+			echo "Unused: $PACN"
+		fi
+		;;
+	"-h"|"--help")
+		cat << EOF
+atrm [OPTION]
+
+Removes orhpaned packages and unused flatpaks.
+Passing no option will default to all.
+
+OPTIONS:
+	-h --help	display this message
+	-v --version	disply info about the version of this program
+	-p --pacman	remove only orphaned packages with pacman
+	-f --flatpaks	remove only unused flatpaks with flatpak uninstall
+	-a --all	remove both orhpaned packages and unused flatpaks
+	-c --count 	display a message with the count of unused packages 'Unused: n'.
+			the info in the prompt is updated every 10 minutes to avoid bogging down the system with too many package queries if multiple calls happens (maybe in a prompt or something similar)
+EOF
+		exit 0
+		;;
+	"-v"|"--version")
+		cat << EOF
+atrm - Part of BreadyX' utils (BXU).
+Current Version: $CUR_VER
+EOF
+		;;
+	"*")
+		echo "Invalid syntax, see 'autoremove --help' for usage"
+		exit 1
+		;;
+esac
