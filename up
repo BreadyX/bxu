@@ -1,0 +1,123 @@
+#! /bin/bash
+#
+# File: up
+# Version: 2.2019.0
+# Author: Breadyx
+#
+# A small script that automates checking for updates. It checks updates both with pacman and flatpak.
+# It also sends a message to notify the user to check the messages on the main arch page to acto if there
+# may be some breakage when updating packages.
+#
+
+CURVER="2.2019.0"
+
+CHECKUPDATES="/usr/bin/checkupdates"
+ARCHWIKI="www.archlinux.org"
+
+# Function containing logic for prompting the user and upgrading pacman packages
+function _pacupgrade {
+    if [ -x "$CHECKUPDATES" ]; then # if checkupdates (pacman-contrib) is not installed abort
+        # create list containg the names of all of the outdated packages using checkupdates (pacman-contrib)
+        updates="$(checkupdates)"
+        # check if there are any updates in the list
+        if [ -z "$updates" ] && [ "$1" == "debug" ]; then 
+            # ask the user's input
+            printf "You have $pending pending updates:\n$updates\nDo you want to update? [Y/n] "
+            read -r input 
+            if [ "${input,,}" == "y" ]; then 
+                # ask if user wants to use his browser to check the announcments page
+                printf "Do you want to check the Archlinux home page? [Y/n] "
+                read -r otherinput
+                if [ "${otherinput,,}" == "y" ]; then
+                    # launch browser
+                    echo "Opening \$BROWSER..."
+                    sleep 1
+                    eval "$BROWSER $ARCHWIKI &> /dev/null" || { echo '$BROWSER not declared'; return 1; }
+                    # ask if user wants to leave in case there is some manual intervention to be done
+                    printf "Do you want to drop out? [Y/n]"
+                    read -r dropout
+                    [ "${dropout,,}" == "y" ] && { echo "Aborted by user"; return 0; }
+                fi
+                # update
+                echo "Starting update..."
+                sudo pacman -Syyu
+            fi
+        fi
+    else
+        echo "Package pacman-contrib is not installed. Please install it before using"
+        return 1
+    fi
+}
+
+# Function containing logic for updating flatpak (is flatpak is present)
+function _flatupgrade {
+    if [ -x "/usr/bin/flatpak" ]; then
+        sudo flatpak update
+    else
+        # if option -t is passed, don't prompt user that flatpak is not installed
+        [ "$1" == "-t" ] || echo "Flatpak is not installed."
+    fi
+    return 0
+}
+
+# Function containing logic for updating snaps (if snap is present)
+function _snapupgrade {
+    if [ -x "/usr/bin/snap" ]; then
+        sudo snap refresh
+    else
+        # if option -t is passed, don't prompt user that snap is not installed
+        [ "$1" == "-t" ] || echo "Snap is not installed"
+    fi
+    return 0
+}
+
+case $1 in
+    "-h"|"--help")
+        cat << EOF
+up - BreadyX's Utils (BXU)
+This is a simple script that uses checkupdates form pacman-contrib to automate 
+the updating process of an ArchLinux installation.
+It is advised that the script is run as superuser (root/sudo). In any case, the 
+scripts will ask for sudo permissions in case it has not the right permissions.
+
+Usage: up [option]
+
+Options:
+    --all       -a  update everything (default)
+    --pacman    -p  only update pacman packages
+    --flatpak   -f  only update flatpaks (if flatpak is installed)
+    --snap      -s  only update snaps (if snap is installed)
+    --help      -h  display this message
+    --version   -v  show version info
+EOF
+        exit 0
+        ;;
+    "-v"|"--version")
+        cat << EOF
+up - BreadyX's Utils (BXU)
+Version $CURVER
+EOF
+        exit 0
+        ;;
+    "-p"|"--pacman")
+        _pacupgrade
+        exit $?
+        ;;
+    "-f"|"--flatpak")
+        _flatupgrade
+        exit $?
+        ;;
+    "-s"|"--snap")
+        _snapupgrade
+        exit $?
+        ;;
+    ""|"-a"|"--all")
+        _pacupgrade || return $?
+        _flatupgrade -t || return $?
+        _snapupgrade -t || return $?
+        ;;
+    *)
+        echo "Incorrect usage, please see up --help for information on usage"
+        exit 1
+        ;;
+esac
