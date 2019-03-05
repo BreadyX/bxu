@@ -20,7 +20,7 @@ function _pacupgrade {
         # create list containg the names of all of the outdated packages using checkupdates (pacman-contrib)
         updates="$(checkupdates)"
         # check if there are any updates in the list
-        if [ -z "$updates" ] && [ "$1" == "debug" ]; then 
+        if [ -n "$updates" ]; then 
             # ask the user's input
             printf "You have $pending pending updates:\n$updates\nDo you want to update? [Y/n] "
             read -r input 
@@ -112,9 +112,9 @@ EOF
         exit $?
         ;;
     ""|"-a"|"--all")
-        _pacupgrade || return $?
-        _flatupgrade -t || return $?
-        _snapupgrade -t || return $?
+        _pacupgrade || exit $?
+        _flatupgrade -t || exit $?
+        _snapupgrade -t || exit $?
         ;;
     *)
         echo "Incorrect usage, please see up --help for information on usage"
