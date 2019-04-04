@@ -13,6 +13,6 @@ These are **simple utilities** and will never be something very complex. Their m
 - bash
 
 ## Installation
-It is advised to install these utilities in the user's private bin folder and not system-wide: install in either `$HOME/.local/bin/` or `$HOME/bin` depending on your configuration and preference.
+It is advised to install these utilities in the user's private bin folder and not system-wide: install in either `$HOME/.local/bin/` or `$HOME/bin` depending on your configuration and preference. The included `install.sh` bash script installs the scripts in `$HOME/.local/bin`. Pass option `--otherbin` to use `$HOME/bin` ($INSTALLDIR).
 
 **NOTE:** The files inside the `deprecated` folder are either very old and unused scripts or contain some major flaws. Please do not install files inside that folder unless you know what you are doing. 
