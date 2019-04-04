@@ -1,0 +1,64 @@
+#! /bin/bash
+#
+# File: autorm
+# Version: 2.2019.0
+# Author: BreadyX
+#
+# Simple shell script that handles removing unused packages/flatpaks.
+#
+
+CUR_VER="2.2019.0"
+
+PACN=$(pacman -Qdtq)
+
+function _pac_rm {
+	if [ "$1" -eq 0 ] || [ "$1" -eq 2 ]; then
+		echo "Cleaning orphaned packages..."
+		[ "$(echo "$PACN" | wc -w)" -gt 0 ] && sudo pacman -Rns --noconfirm $PACN 2> /dev/null
+	fi
+	if [ "$1" -eq 1 ] || [ "$1" -eq 2 ]; then
+		echo "Cleaning unused flatpaks..."
+		flatpak uninstall --unused &> /dev/null
+	fi
+}
+
+case $1 in
+	""|"-a"|"--all")
+		_pac_rm 2
+		exit 0
+		;;
+	"-p"|"--pacman")
+		_pac_rm 0
+		exit 0
+		;;
+	"-f"|"--flatpak")
+		_pac_rm 1
+		exit 0
+		;;
+	"-h"|"--help")
+		cat << EOF
+autorm [OPTION]
+
+Removes orhpaned packages and unused flatpaks.
+Passing no option will default to all.
+
+OPTIONS:
+	-h --help	display this message
+	-v --version	disply info about the version of this program
+	-p --pacman	remove only orphaned packages with pacman
+	-f --flatpaks	remove only unused flatpaks with flatpak uninstall
+	-a --all	remove both orhpaned packages and unused flatpaks
+EOF
+		exit 0
+		;;
+	"-v"|"--version")
+		cat << EOF
+autorm - Part of BreadyX' utils (BXU).
+Current Version: $CUR_VER
+EOF
+		;;
+	"*")
+		echo "Invalid syntax, see 'autorm --help' for usage"
+		exit 1
+		;;
+esac

@@ -22,7 +22,7 @@ function _pacupgrade {
         # check if there are any updates in the list
         if [ -n "$updates" ]; then 
             # ask the user's input
-            printf "You have $pending pending updates:\n$updates\nDo you want to update? [Y/n] "
+	    printf "You have $(echo "$updates" | wc -l) pending updates:\n%s\nDo you want to update? [Y/n] " "$updates"
             read -r input 
             if [ "${input,,}" == "y" ]; then 
                 # ask if user wants to use his browser to check the announcments page
@@ -32,7 +32,7 @@ function _pacupgrade {
                     # launch browser
                     echo "Opening \$BROWSER..."
                     sleep 1
-                    eval "$BROWSER $ARCHWIKI &> /dev/null" || { echo '$BROWSER not declared'; return 1; }
+                    eval "$BROWSER $ARCHWIKI &> /dev/null" || { echo "\$BROWSER not declared"; return 1; }
                     # ask if user wants to leave in case there is some manual intervention to be done
                     printf "Do you want to drop out? [Y/n]"
                     read -r dropout
@@ -40,9 +40,11 @@ function _pacupgrade {
                 fi
                 # update
                 echo "Starting update..."
-                sudo pacman -Syyu
+                sudo pacman -Syyu --noconfirm
+		return $?
             fi
         fi
+	return 0
     else
         echo "Package pacman-contrib is not installed. Please install it before using"
         return 1
@@ -52,7 +54,7 @@ function _pacupgrade {
 # Function containing logic for updating flatpak (is flatpak is present)
 function _flatupgrade {
     if [ -x "/usr/bin/flatpak" ]; then
-        sudo flatpak update
+        flatpak update
     else
         # if option -t is passed, don't prompt user that flatpak is not installed
         [ "$1" == "-t" ] || echo "Flatpak is not installed."
