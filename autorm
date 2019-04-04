@@ -1,53 +1,97 @@
 #! /bin/bash
 #
 # File: autorm
-# Version: 2.2019.0
+# Version: 4.2019.0
 # Author: BreadyX
 #
-# Simple shell script that handles removing unused packages/flatpaks.
+# Simple shell script that handles removing unused packages/flatpaks. (DNF VERSION)
 #
 
-CUR_VER="2.2019.0"
+CUR_VER="4.2019.0"
 
-PACN=$(pacman -Qdtq)
-
-function _pac_rm {
-	if [ "$1" -eq 0 ] || [ "$1" -eq 2 ]; then
-		echo "Cleaning orphaned packages..."
-		[ "$(echo "$PACN" | wc -w)" -gt 0 ] && sudo pacman -Rns --noconfirm $PACN 2> /dev/null
-	fi
-	if [ "$1" -eq 1 ] || [ "$1" -eq 2 ]; then
-		echo "Cleaning unused flatpaks..."
-		flatpak uninstall --unused &> /dev/null
+function _check_input { # Function that checks for input
+	if [ -z "$1" ]; then # check if not --assumeyes
+		printf "Is this ok? [Y/n]: "
+		read -r INPUT
+		if [ "${INPUT,,}" == "n" ]; then echo "Operation aborted by user"; return 1; fi
+	else
+		if [ "$1" != "--assumeyes" ] && [ "$1" != "-y" ]; then echo "Invalid option $1. See help (command help)"; return 1; fi # Check for user error
 	fi
 }
 
+function _pac_rm { # Function to remove orphaned dnf packages
+	echo "+++ DNF +++"
+	echo "Searching for orphaned packages..."
+
+	PACKS=$(dnf list autoremove --quiet | sed '1d' | awk '{print $1}') # Get a list of orphaned packages
+	[ -z "$PACKS" ] && { echo "No orphaned packages..."; return 0; }
+	echo -e "You got this orphaned packages:\n$PACKS"
+
+	_check_input "$1" || return $?
+	dnf autoremove --assumeyes --quiet	
+}
+
+function _flatpak_rm {
+	which flatpak &> /dev/null || { if [ "$2" != "-t" ]; then echo "Flatpak is not installed"; fi; return 1; } # Check if flatpak is installed
+
+	echo "+++ FLATPAK +++"
+	[ -n "$1" ] && if [ "$1" != "--assumeyes" ] && [ "$1" != "--y" ]; then echo "Invalid option $1. See help (command help)"; return 1; fi # Check for user error
+	eval "flatpak remove --unused $1" # Everything is handled by flatapk ad there isn't a way to list only orphaned packages
+}
+
+function _snap_rm { # Function to remove orphaned snap packages 
+	which snap &> /dev/null || { if [ "$2" != "-t" ]; then echo "Snap is not installed"; fi; return 1; } # Check if snapd is installed
+
+	echo "+++ SNAPD +++"
+	PACKS=$(snap list --all | awk '/disabled/{print $1, $3}')
+	echo -e "You got this orphaned packages:\n$PACKS"
+
+	_check_input "$1" || return $?
+	echo "$PACKS" | while read -r snapname revision; do # Remove packages
+		snap remove "$snapname" --revision="$revision"
+	done
+}
+
+### BASH STORY
+if [ "$EUID" -ne 0 ]; then 
+	echo "Please run as root"
+	exit
+fi
+
 case $1 in
-	""|"-a"|"--all")
-		_pac_rm 2
+	"all"|"")
+		_pac_rm "$2"
+		_flatpak_rm "$2" "-t"
+		_snap_rm "$2" "-t"
 		exit 0
 		;;
-	"-p"|"--pacman")
-		_pac_rm 0
+	"packs")
+		_pac_rm "$2"
 		exit 0
 		;;
-	"-f"|"--flatpak")
-		_pac_rm 1
+	"flatpak")
+		_flatpak_rm "$2" 
 		exit 0
 		;;
-	"-h"|"--help")
+	"snap")
+		_snap_rm "$2" 
+		exit 0
+		;;
+	"-h"|"--help"|"help")
 		cat << EOF
-autorm [OPTION]
+autorm [COMMAND] [OPTIONS]
 
 Removes orhpaned packages and unused flatpaks.
 Passing no option will default to all.
 
-OPTIONS:
-	-h --help	display this message
-	-v --version	disply info about the version of this program
-	-p --pacman	remove only orphaned packages with pacman
-	-f --flatpaks	remove only unused flatpaks with flatpak uninstall
-	-a --all	remove both orhpaned packages and unused flatpaks
+COMMANDs:
+	-h --help	help	display this message
+	-v --version	version	disply info about the version of this program
+
+	packs		remove only orphaned packages with pacman
+	flatpak		remove only unused flatpaks (if flatpak is not installed will return error)
+	snap		remove only unused snaps (if snapd is not installed will return error)
+	all		remove every orphan (if possible)
 EOF
 		exit 0
 		;;
