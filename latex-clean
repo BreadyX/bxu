@@ -7,11 +7,12 @@
 # Cleans the folder of any junk files leaved behind by pdflatex
 
 ### FLAGS
-VERSION="4.2019.0"
+VERSION="4.2019.0" # Version of the script
 
-RECURSIVE=0
-EXTENSIONS="aux|log|ps|tex~|bbl|blg"
+RECURSIVE=0				# Sets if it should operate recoursively
+EXTENSIONS="aux|log|ps|tex~|bbl|blg"	# Extension schema, used later in a grep
 
+# Help dialog text
 HELP_DIALOG=$(cat << EOF
 latex-clear [OPTIONS]
 
@@ -27,6 +28,7 @@ OPTIONS:
     --version                   Show a dialog detailing information about the version
 EOF
 )
+# Version dialog text
 VERSION_DIALOG=$(cat << EOF
 latex-clear - Part of BreadyX's utils (BXU)
 
@@ -41,12 +43,15 @@ EOF
 
 
 ### FUNCTIONS
+# pretty prints errors
 function print_error {
     local RED=$(tput setaf 1)
     local RESET=$(tput sgr0)
     echo "$RESET$RED$1$RESET"
 }
 
+# Heart of the program, checks for file extension with regexp (grep) and removes file.
+# It can also operate recursively if RECURSIVE flag is set
 function _remove {
     for file in ./*; do
         if (echo "$file" | grep -Eq ".*\.($EXTENSIONS)") ; then
@@ -71,7 +76,8 @@ function _remove {
 }
 
 ### SCRIPTS
-# evaluate cmd
+# loop that evaluates cmd args. It only checks of long option (double-dash) without
+# equal (--option=value)
 while [ $# -gt 0 ]; do
     case $1 in
         "--help")
@@ -100,4 +106,5 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-_remove # removes the files
+# calls "main" function after cmd args evaluation
+_remove
