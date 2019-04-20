@@ -89,7 +89,10 @@ while [ $# -gt 0 ]; do
             exit 0
             ;;
         "--extensions")
-            EXTENSIONS=$2
+			# Trim input of pending | to increase security: laeving a trailing |
+			# means that every file is elegible for deletion, and that's not good.
+			# It also trims whitespaces just in case.
+            EXTENSIONS=$(echo $2 | sed 's/^|*//;s/|*$//' | sed 's/^[ \t]*//;s/[ \t]*$//')
             shift 2
             ;;
         "--recursive")
