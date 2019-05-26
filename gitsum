@@ -1,68 +1,93 @@
-#!/bin/bash
+#!/bin/sh
 #
 # File: gitsum
-# Version: 2.2019.2
+# Version: 5.2019.0
 # Author: BreadyX
 #
 # Small script that prints formatted information about the git repository opened
 #
 
-CUR_VER='2.2019.2'
+VERSION='5.2019.0'
 
-function makeprompt {
-	# REPO="$(git config --get remote.origin.url | cut -d "/" --fields="$(seq --separator=" " 3 100)")"
-	if [ $(git branch | wc -l) -ge 1 ]; then
-		BRANCH="$(git branch | grep "\*" | cut -d " " -f2)"
-	else
-		BRANCH="NA"
+makeprompt()
+{
+	# Define variables
+	branch=""
+	stash=
+	not_pushed=
+	not_tracked=
+	# Assign variables
+	if [ -n "$(git branch)" ]; then
+		branch="$(git branch | grep "\*" | cut -d " " -f2)"
 	fi
-	[ -n "$(git stash list)" ] && STASHED="$"
-	[ "$(git remote | wc -l)" -ge 1 ] && [ -n "$(git log origin/"$BRANCH"..HEAD)" ] && UNPUSHED="+"
-	[ -n "$(git status -u -s)" ] && UNTRACKED="*"
-	echo -e " $BRANCH; [$UNTRACKED$UNPUSHED$STASHED]"
+	[ -n "$(git stash list)" ] && stash="$"
+	[ -n "$(git remote)" ] && [ -n "$(git log origin/"$branch"..HEAD)" ] && not_pushed="+"
+	[ -n "$(git status -u -s)" ] && not_tracked="*"
+	printf " %s; [%s%s%s]" "$branch" "$not_tracked" "$not_pushed" "$stash"
+}
+
+recurse() 
+{
+	RECURSE="$1"
+	TOCHECK=""
+	if [ -d "./.git" ]; then
+		makeprompt
+	else
+		for i in $(seq 1 "$RECURSE"); do
+			if [ -d "$TOCHECK.git" ]; then
+				makeprompt
+				break
+			fi
+			TOCHECK="../$TOCHECK"
+		done
+	fi
+}
+
+seq --version >/dev/null 2>&1 || {
+	printf "seq is not installed! Please install seq to make gitsum work.\n" >&2
+	exit 1
 }
 
 case $1 in
-	"-h"|"--help")
+	"--help")
 		cat << EOF
-gitsum [NUMBER] [OPTIONS]
+gitsum [--help] [--version] [<number>]
 
-Simple script that formats quick summary about the repository in the currento working directory. It can be used inside the prompt to add git integration.
-The script will analize recursively going back NUMBER dirctories
+Simple script that formats a quick summary about git repositories. The script 
+looks for a '.git' directory in directories going up to <number> levels, where
+<number> is an integer between 0 and 99.
+
+If <number> is not given, the program defaults to 1.
 
 OPTIONS:
--h --help       Display this message
--v --version    Display version info
+	--help		Display this message
+	--version	Display version info
+
+
+gitsum - BreadyX's utils (BXU). Version $VERSION
+This program has been written by BreadyX, contacts (for bug reports and other):
+    Github profile:     https://github.com/BreadyX
+    GitHub repo (BXU):  https://github.com/BreadyX/bxu
 EOF
 		;;
-	"-v"|"--version")
+	"--version")
 		cat << EOF
-gitsum - part of BreadyX's utils (BXU)
-Current Version: $CUR_VER
+gitsum - BreadyX's utils (BXU). Version $VERSION
+This program has been written by BreadyX, contacts (for bug reports and other):
+    Github profile:     https://github.com/BreadyX
+    GitHub repo (BXU):  https://github.com/BreadyX/bxu
 EOF
 	;;
-	[0-9])
-		RECURSE="$1"
-		if [ -d "./.git" ]; then
-			makeprompt
-		else
-			TOCHECK=""
-			for (( i=0; i<$RECURSE; i++ )); do
-				TOCHECK+="../"
-				if [ -d "$TOCHECK/.git" ]; then
-					makeprompt
-					break
-				fi
-			done
-		fi
+	[0-9]|[0-9][0-9])
+		recurse "$1"
 		exit 0
 		;;
 	"")
-		if [ -d "./.git" ]; then makeprompt; else echo ""; fi
+		recurse "1"
 		exit 0
 		;;
 	*)
-		echo "Invalid option, for help use git_hud --help" > /dev/stderr
+		echo "Invalid option, for help use gitsum --help" >&2
 		exit 1
 		;;
 esac
