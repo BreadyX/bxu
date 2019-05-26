@@ -1,108 +1,145 @@
-#! /bin/bash
+#!/bin/sh
 #
 # File: autorm
-# Version: 4.2019.0
+# Version: 5.2019.0
 # Author: BreadyX
 #
 # Simple shell script that handles removing unused packages/flatpaks. (DNF VERSION)
 #
 
-CUR_VER="4.2019.0"
+VERSION="5.2019.0"
 
-function _check_input { # Function that checks for input
+# Function that checks for input
+_check_input()
+{ 
 	if [ -z "$1" ]; then # check if not --assumeyes
 		printf "Is this ok? [Y/n]: "
 		read -r INPUT
-		if [ "${INPUT,,}" == "n" ]; then echo "Operation aborted by user"; return 1; fi
+		if [ "$(echo $INPUT | tr [:upper] [:lower])" = "n" ]; then 
+			printf "Operation aborted by user\n"
+			return 1
+		fi
 	else
-		if [ "$1" != "--assumeyes" ] && [ "$1" != "-y" ]; then echo "Invalid option $1. See help (command help)"; return 1; fi # Check for user error
+		# Check for user error
+		if [ "$1" != "--assumeyes" ]; then 
+			printf "Invalid option $1. See 'autorm --help'\n"
+			return 1
+		fi
 	fi
 }
 
-function _pac_rm { # Function to remove orphaned dnf packages
-	echo "+++ DNF +++"
-	echo "Searching for orphaned packages..."
+_pac_rm()
+{ # Function to remove orphaned dnf packages
+	printf "+++ DNF +++\n"
+	printf "Searching for orphaned packages...\n"
 
-	PACKS=$(dnf list autoremove --quiet | sed '1d' | awk '{print $1}') # Get a list of orphaned packages
+	# Get a list of orphaned packages
+	PACKS="$(dnf list autoremove --quiet | sed '1d' | awk '{print $1}')" 
 	[ -z "$PACKS" ] && { echo "No orphaned packages..."; return 0; }
-	echo -e "You got this orphaned packages:\n$PACKS"
+	printf "You got this orphaned packages:\n%s\n" "$PACKS"
 
 	_check_input "$1" || return $?
 	dnf autoremove --assumeyes --quiet	
 }
 
-function _flatpak_rm {
-	which flatpak &> /dev/null || { if [ "$2" != "-t" ]; then echo "Flatpak is not installed"; fi; return 1; } # Check if flatpak is installed
-
-	echo "+++ FLATPAK +++"
-	[ -n "$1" ] && if [ "$1" != "--assumeyes" ] && [ "$1" != "--y" ]; then echo "Invalid option $1. See help (command help)"; return 1; fi # Check for user error
-	eval "flatpak remove --unused $1" # Everything is handled by flatapk ad there isn't a way to list only orphaned packages
+_flatpak_rm()
+{
+	# Check if flatpak is installed
+	flatpak --version > /dev/null 2>&1 || { 
+		[ "$2" != "-t" ] && printf "Flatpak is not installed\n"
+		return 1
+	}
+	
+	# Flatpak hasn't got a way to list all unused packages
+	
+	printf "+++ FLATPAK +++\n"
+	_check_input "$1" || return $?
+	flatpak remove --unused --assumeyes
 }
 
-function _snap_rm { # Function to remove orphaned snap packages 
-	which snap &> /dev/null || { if [ "$2" != "-t" ]; then echo "Snap is not installed"; fi; return 1; } # Check if snapd is installed
+# Function that removes orphaned snap packages 
+_snap_rm()
+{ 
+	# Check if snapd is installed
+	snap --version >/dev/null 2>&1 || { 
+		[ "$2" != "-t" ] && printf "Snap is not installed\n"
+		return 1
+	} 
 
-	echo "+++ SNAPD +++"
-	PACKS=$(snap list --all | awk '/disabled/{print $1, $3}')
-	echo -e "You got this orphaned packages:\n$PACKS"
+	# Get list of all packages
+	printf "+++ SNAP +++\n"
+	PACKS="$(snap list --all | awk '/disabled/{print $1, $3}')"
+	printf "You got this orphaned packages:\n%s\n" "$PACKS"
 
+	# Ask for confiramtio and delete
 	_check_input "$1" || return $?
 	echo "$PACKS" | while read -r snapname revision; do # Remove packages
 		snap remove "$snapname" --revision="$revision"
 	done
 }
 
-### BASH STORY
-if [ "$EUID" -ne 0 ]; then 
-	echo "Please run as root"
+#
+# MAIN
+#
+if [ "$(id -u)" -ne 0 ]; then 
+	printf "Please run as root\n"
 	exit
 fi
 
 case $1 in
 	"all"|"")
-		_pac_rm "$2"
-		_flatpak_rm "$2" "-t"
-		_snap_rm "$2" "-t"
-		exit 0
+		_pac_rm "$2" || exit $?
+		_flatpak_rm "$2" "-t" || exit $?
+		_snap_rm "$2" "-t" || exit $?		
 		;;
 	"packs")
 		_pac_rm "$2"
-		exit 0
+		exit $?
 		;;
 	"flatpak")
 		_flatpak_rm "$2" 
-		exit 0
+		exit $?
 		;;
 	"snap")
 		_snap_rm "$2" 
-		exit 0
+		exit $?
 		;;
-	"-h"|"--help"|"help")
+	"--help")
 		cat << EOF
-autorm [COMMAND] [OPTIONS]
+autorm [--help] [--version] [<command>] [--assumeyes]
 
-Removes orhpaned packages and unused flatpaks.
-Passing no option will default to all.
+Removes unused programs. It supports the system package manager, flatpak and snap.
 
-COMMANDs:
-	-h --help	help	display this message
-	-v --version	version	disply info about the version of this program
+If no command is given, the program defaults to 'all'
 
+COMMANDS:
 	packs		remove only orphaned packages with pacman
 	flatpak		remove only unused flatpaks (if flatpak is not installed will return error)
 	snap		remove only unused snaps (if snapd is not installed will return error)
-	all		remove every orphan (if possible)
+	all			remove every orphan (if possible)
+
+OPTIONS:
+	--help 		Display this message
+	--version	Display info about version
+	--assumeyes Don't ask for any confirmation
+
+autorm - BreadyX's utils (BXU). Version $VERSION
+This program has been written by BreadyX, contacts (for bug reports and other):
+    Github profile:     https://github.com/BreadyX
+    GitHub repo (BXU):  https://github.com/BreadyX/bxu
 EOF
 		exit 0
 		;;
-	"-v"|"--version")
+	"--version")
 		cat << EOF
-autorm - Part of BreadyX' utils (BXU).
-Current Version: $CUR_VER
+autorm - BreadyX's utils (BXU). Version $VERSION
+This program has been written by BreadyX, contacts (for bug reports and other):
+    Github profile:     https://github.com/BreadyX
+    GitHub repo (BXU):  https://github.com/BreadyX/bxu
 EOF
 		;;
 	"*")
-		echo "Invalid syntax, see 'autorm --help' for usage"
+		printf "Invalid syntax, see 'autorm --help' for usage\n"
 		exit 1
 		;;
 esac
