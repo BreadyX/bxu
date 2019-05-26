@@ -1,15 +1,16 @@
-#!/bin/bash
+#!/bin/sh
 #
 # File: ext-clean
-# Version: 4.2019.1
+# Version: 5.2019.0
 # Author: BreadyX
 #
 # Cleans the folder and its subfolders of any junk files. 
 # The program cleans them based on extension (default or
 # user given).
+# 
 
 ### FLAGS
-VERSION="4.2019.1"                  # Version of the script
+VERSION="5.2019.0"                  # Version of the script
 
 RECURSIVE=0				            # Should it operate recursively?
 ASK=0                               # Should it ask permission?
@@ -17,68 +18,69 @@ EXTENSIONS="aux log tex~ bbl blg"	# Extensions array
 
 # Help dialog text
 HELP_DIALOG=$(cat << EOF
-ext-clean [OPTIONS]
+ext-clean [--extensions schema | --extensions=schema] [--recursive] [--ask]
+		  [--help] [--version]
 
-Cleans the folder and its subfolders of any junk files.  The program cleans them
-based on extension (default or user given).
+Cleans the folder (and its subfolders if '--recursive' is given) of any files
+with the selected extensions extensions 
 
 OPTIONS:
-    --extensions [SCHEMA]       Extensions to delete comma separated (e.g. "aux,log")
-    --extensions=[SCHEMA]       You can also use glob expansion (e.g. "[al]*") so be
-                                careful.
-                                If option not specified, ext-clean will use 
-                                a default set of extensions: "$EXTENSIONS"
-                                
-    --recursive                 Recurse into subfolders
+    --extensions schema		Extensions to delete comma separated (e.g. "aux,log")
+    --extensions=schema		You can also use glob expansion (e.g. "al*") so be
+							careful.
+                            If option not specified, ext-clean will use a default
+                            set of extensions: $EXTENSIONS
+    --recursive				Recurse into subfolders   
+    --ask					Ask for confirmation   
+    --help					Show this dialog    
+    --version				Show a dialog with details about version
     
-    --ask                       Ask for confirmation
-    
-    --help                      Show this dialog
-    
-    --version                   Show a dialog detailing information about the version
+
+ext-clean - Part of BreadyX's utils (BXU). Version $VERSION
+This program has been written by BreadyX, contacts (for bug reports and other):
+    Github profile:     https://github.com/BreadyX
+    GitHub repo (BXU):  https://github.com/BreadyX/bxu
 EOF
 )
 # Version dialog text
 VERSION_DIALOG=$(cat << EOF
-ext-clean - Part of BreadyX's utils (BXU)
-
+ext-clean - BreadyX's utils (BXU). Version $VERSION
 This program has been written by BreadyX, contacts (for bug reports and other):
     Github profile:     https://github.com/BreadyX
     GitHub repo (BXU):  https://github.com/BreadyX/bxu
-    E-mail:             alex.bradatan85@gmail.com 
-
-Current version: $VERSION
 EOF
 )
 
 
 ### FUNCTIONS
 # Pretty prints errors
-function print_error {
-    local RED=$(tput setaf 1)
-    local RESET=$(tput sgr0)
-    echo "$RESET$RED$1$RESET"
+print_error()
+{
+    RED=$(tput setaf 1)
+    RESET=$(tput sgr0)
+    printf "%s\n" "$RESET$RED$1$RESET" >&2
 }
 
 # Heart of the program, checks for file extension with regex (grep) and removes file.
 # It can also operate recursively if RECURSIVE flag is set
-function _remove {
-    # Outer loop, loops through all the extensions in the EXTENSIONS array. The current
-    # extensions is named 'ext'
-    for ext in ${EXTENSIONS[@]}; do
+_remove()
+{
+    # Outer loop, loops through all the extensions in the EXTENSIONS array. 
+    # The current extension is named 'ext'
+    for ext in $EXTENSIONS; do
         # Inner loop, loops through all the files that have extension 'ext'.
         # If 'ext' can be glob-expanded it will happen here.
         for file in ./*.$ext; do
             # Checks if $file exists, in case the glob expansion fails
-            if [ -e $file ]; then
+            if [ -e "$file" ]; then
                 # Checks file permissions
-                if ! [ -w $file ]; then
+                if ! [ -w "$file" ]; then
                     print_error "The user cannot delete file $file"
                     continue
                 fi
                 # If ASK flag is set, ask. If the user answers yes, continue
                 # the cycle, if it answers no skip to the nex iteration
-                if [ $ASK -eq 1 ]; then
+                if [ "$ASK" -eq 1 ]; then
                     printf "Remove %s? [Y/n] " "$file"
                     read -r input
                     if [ "${input,,}" == "n" ] || [ "${input,,}" == "no" ]; then
@@ -86,7 +88,7 @@ function _remove {
                     fi
                 fi
                 # Delete file
-                echo "Removing $file"
+                printf "Removing %s\n" "$file"
                 rm "$file"
             fi
         done
@@ -96,8 +98,8 @@ function _remove {
         for dir in ./*; do
             if [ -d "$dir" ]; then
                 (
-                cd "$dir" || exit
-                _remove
+		            cd "$dir" || exit
+		            _remove
                 )
             fi
         done
@@ -109,11 +111,11 @@ function _remove {
 while [ $# -gt 0 ]; do
     case $1 in
         "--help")
-            echo "$HELP_DIALOG"
+            printf "%s\n" "$HELP_DIALOG"
             exit 0
             ;;
         "--version")
-            echo "$VERSION_DIALOG"
+            printf "%s\n" "$VERSION_DIALOG"
             exit 0
             ;;
         "--extensions"|"--extensions="*)
@@ -144,7 +146,7 @@ while [ $# -gt 0 ]; do
             shift
             ;;
         *)
-            print_error "Invalid arguments, please see ext-clean --help for help with usage"
+            print_error "Invalid arguments, please see 'ext-clean --help' for help."
             exit 1
             ;;
     esac
