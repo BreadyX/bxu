@@ -1,0 +1,93 @@
+#! /bin/sh -e
+
+# Changes grub default to desired kernel and updates grub.cfg
+
+VERSION='8.2019.1'
+HELP_DIALOG="Usage: change-boot OPTION | KERNEL_TYPE
+Change the defualt grub boot entry to match the specified kernel and update the
+grub config file. 
+
+The script requests sudo/root privileges for certain actions ('--info' and 
+every changing to every KERNEL_TYPE).
+
+To provide the query for the --info option, the program uses 'pacman' by
+default since it was designed to be run with Arch Linux. This can be, however,
+modified by hacking directly the script and hardcoding a new query because I
+don't want to spend time on a utility script thet gets ran 1 time a month.
+
+Supported kernel types:
+    linux           Change default to mainline kernel
+    linux-lts       Change default to lts kernel
+
+Options:
+    --info          List mainline and lts kernel grub id and kernel version
+    --help          Display this dialog
+    --version       Show version info"
+VERSION_DIALOG="change-boot - BreadyX's utils (BXU). Version $VERSION
+Written by BreadyX, contacts (for bug reports and other):
+    Github profile:     https://github.com/BreadyX
+    GitHub repo (BXU):  https://github.com/BreadyX/bxu"
+
+GRUB_FILE="/etc/default/grub"
+NORMAL=""
+LTS=""
+UUID_ROOT=""
+RED=$(tput setaf 1)
+YELLOW=$(tput setaf 11)
+RESET=$(tput sgr0)
+
+err() {
+    # Pretty print errors #
+    printf "E: %s\n" "$RESET$RED$1$RESET" >&2
+    exit 1
+}
+assign_vars() {
+    # Init all necessary variables. Requires sudo/root privileges. #
+    UUID_ROOT="$(blkid "$(df -k / | grep -o '/dev/[a-z0-9]*')" | \
+        grep -wo 'UUID="[a-z0-9\-]*"' | sed 's/UUID=//;s/"//g')"
+    NORMAL="gnulinux-linux-advanced-$UUID_ROOT"
+    LTS="gnulinux-linux-lts-advanced-$UUID_ROOT"
+}
+change_file() {
+    # Change GRUB_FILE and update grub.cfg. Requires sudo/root privileges #
+    # Use sed to modify the necessary part
+    sed -i "s/^GRUB_DEFAULT=.*$/GRUB_DEFAULT=\"$1\"/" $GRUB_FILE
+    # Update grub.cfg
+    printf "Updating grub.cfg...\n"
+    grub-mkconfig -o /boot/grub/grub.cfg
+}
+
+case $1 in
+    "linux")
+        if [ "$(id -u)" -ne 0 ]; then 
+            printf "Please run as root\n"
+            exit 0
+        fi
+        assign_vars
+        change_file $NORMAL ;;
+    "linux-lts")
+        if [ "$(id -u)" -ne 0 ]; then 
+            printf "Please run as root\n"
+            exit 0
+        fi
+        pacman -Q linux-lts > /dev/null 2>&1 || err "linux-lts is not installed"
+        assign_vars
+        change_file $LTS ;;
+    "--info")
+        if [ "$(id -u)" -ne 0 ]; then 
+            printf "Please run as root\n"
+            exit 0
+        fi
+        assign_vars
+        NORM_INFO="$(pacman -Qi linux)"
+        LTS_INFO="$(pacman -Qi linux-lts || echo "linux-lts is not installed")"
+        printf "%sMainline kernel info:\n%s\nGRUB id \t: %s\n" "$RESET$YELLOW" "$RESET$NORM_INFO" "$YELLOW$NORMAL$RESET"
+        printf "\n"
+        printf "%sLTS kernel info:\n%s\nGRUB id \t: %s\n" "$RESET$YELLOW" "$RESET$LTS_INFO" "$YELLOW$LTS$RESET"
+        printf "\n"
+        printf "%sCurrent default:\n%s\n" "$RESET$YELLOW" "$RESET$(grep '^GRUB_DEFAULT' $GRUB_FILE)"
+        ;;
+    "--help") printf "%s\n\n%s\n" "$HELP_DIALOG" "$VERSION_DIALOG" ;;
+    "--version") printf "%s\n" "$VERSION_DIALOG" ;;
+    *) err "Invalid argument. Check help dialog for info" ;;
+esac
