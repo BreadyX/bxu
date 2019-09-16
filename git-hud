@@ -1,9 +1,12 @@
 #! /bin/sh -e
 
-# Print formatted information about the git repository, if it exists, in the 
+# Print formatted information about the git repository, if it exists, in the
 # current directory.
 
-VERSION="9.2019.0"
+### TODO: optimize things (use git rev-parse and git status --porcelain)
+### TODO: do not show unpushed commits if no remote is found
+
+VERSION="8.2019.2"
 err() {
     # Pretty print errors #
     RED=$(tput setaf 1)
@@ -18,16 +21,16 @@ info_dialog() {
 Format a quick summary about the current git repository and print it to standard
 output.
 
-The script recurses up LEVELS looking for a '.git' directory (default 1). 
+The script recurses up LEVELS looking for a '.git' directory (default 1).
 LEVELS has a range of 0 to 99. If passed LEVELS is outside that range, it won't
 be seen as a valid argument.
 
-If environment variable GIT_HUD_GLYPH is set to 'N' the script won't use any of 
+If environment variable GIT_HUD_GLYPH is set to 'N' the script won't use any of
 the fontawesome glyphs.
 
     --help      Print this dialog
     --version   Print dialog containing info about version
-    
+
 Example: git-hud 5"
     VERSION_DIALOG="git-hud - BreadyX's utils (BXU). Version $VERSION
 Written by BreadyX, contacts (for bug reports and other):
@@ -43,31 +46,35 @@ Written by BreadyX, contacts (for bug reports and other):
 
 # Print prompt after assinging all the correct values
 draw_prompt() {
+    ## git rev-parse --show-toplevel 2>/dev/null -> get abs path to .git
+    ## git status --porcelain --branch -> get all info about repo
     # Status-related variables
-    BRANCH="-"
-    STASH=""
     UNPUSH=""
+    # Check if we want fontawesome glyphs disabled
+    if [ -n "$GIT_HUD_GLYPH" ]; then BRANCH_GLYPH="|/"
+    else BRANCH_GLYPH=""; fi
+    if (grep -q 'ref: ' "$1/.git/HEAD"); then
+        BRANCH="$(cut -d'/' -f3 "$1/.git/HEAD")"
+        commit_file="$1/.git/$(cut -d' ' -f2 "$1/.git/HEAD")"
+        [ -f "$commit_file" ] && LATEST_COMMIT="$(cut -b 1,2,3,4,5,6,7 "$commit_file")"
+        ### Check for unpushed
+    else
+        BRANCH='-'
+        LATEST_COMMIT="$(cut -b 1,2,3,4,5,6,7 "$1/.git/HEAD")"
+        ### Check for unpushed
+    fi
+    if [ -f "$1/.git/refs/stash" ]; then STASH="$"
+    else STASH=""; fi
+    # Unpushed commits
+    # [ -n "$(git cherry -v)" ] && UNPUSH="+"
+    # Unstaged and untracked files/changes
     UNSTAGE=""
     UNTRACK=""
-    # Check if we want fontawesome glyphs disabled
-    if [ "$GIT_HUD_GLYPH" = 'N' ] || [ "$GIT_HUD_GLYPH" = '0' ]; then
-        BRANCH_GLYPH="|/"
-    else
-        BRANCH_GLYPH=""
-    fi
-    # Current branch
-    BRANCHES="$(git branch)"
-    [ -n "$BRANCHES" ] && BRANCH="$(echo "$BRANCHES" | grep '*' | sed 's/\* //')"
-    # Stashed changes
-    [ -n "$(git stash list)" ] && STASH="$"
-    # Unpushed commits
-    [ -n "$(git log --branches --not --remotes --oneline)" ] && UNPUSH="+"
-    # Unstaged and untracked files/changes
     MODS="$(git status -u -s)"
     (echo "$MODS" | grep -q '^A\|^ M\|^  D') && UNSTAGE="*"
     (echo "$MODS" | grep -q '??') && UNTRACK="?"
     # Output
-    printf "%s; [%s]" "$BRANCH_GLYPH $BRANCH" "$UNSTAGE$UNTRACK$UNPUSH$STASH"
+    printf "%s; [%s]" "$BRANCH_GLYPH $BRANCH ($LATEST_COMMIT)" "$UNSTAGE$UNTRACK$UNPUSH$STASH"
 }
 
 # Eval arguments
@@ -90,7 +97,7 @@ esac
 # break out of the loop, else go down one level and try again
 while [ "$N_RECURSE" -gt 0 ]; do
     if [ -d "$CUR_LEVEL/.git" ]; then
-        draw_prompt
+        draw_prompt "$CUR_LEVEL"
         break
     else
         CUR_LEVEL="../$CUR_LEVEL"
