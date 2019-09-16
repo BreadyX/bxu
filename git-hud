@@ -3,7 +3,7 @@
 # Print formatted information about the git repository, if it exists, in the 
 # current directory.
 
-VERSION="8.2019.2"
+VERSION="9.2019.0"
 err() {
     # Pretty print errors #
     RED=$(tput setaf 1)
@@ -64,7 +64,7 @@ draw_prompt() {
     [ -n "$(git log --branches --not --remotes --oneline)" ] && UNPUSH="+"
     # Unstaged and untracked files/changes
     MODS="$(git status -u -s)"
-    (echo "$MODS" | grep -q '^M\|^A\|^D') && UNSTAGE="*"
+    (echo "$MODS" | grep -q '^A\|^ M\|^  D') && UNSTAGE="*"
     (echo "$MODS" | grep -q '??') && UNTRACK="?"
     # Output
     printf "%s; [%s]" "$BRANCH_GLYPH $BRANCH" "$UNSTAGE$UNTRACK$UNPUSH$STASH"
