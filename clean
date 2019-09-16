@@ -1,265 +1,346 @@
 #! /usr/bin/env python3
 """Cleans directories of files based on specified patterns."""
+
 import os
-from sys import exit, stdout, argv
-from getopt import getopt, GetoptError
+from sys import stdout, argv
+from getopt import getopt
 from subprocess import check_output
 from re import compile
 
-def get_cli_args(cli_args, app_state):
-    """Evaluate arguments in 'cli_args' and modify 'app_state' accordingly.
-    At last, return app_state"""
-    options, app_state['raw_patterns'] = getopt(cli_args, 'adrvf:', 
-                                            ('ask rmdir dry recursive verbose'
-                                             ' help version file= '
-                                             'directory=').split())
-    for option, value in options:
+
+def main():
+    """Main function"""
+    short_options = 'adrvf:'
+    long_options = ['ask', 'rmdir', 'dry', 'recursive', 'verbose', 'help',
+                    'version', 'file=', 'directory=']
+    cli_patterns = []
+    compiled_pattern = None
+
+    cleanfile = ''
+    directory = './'
+
+    argv_opts, cli_patterns = getopt(argv[1:], short_options, long_options)
+    options = init_options(argv_opts)
+
+    if options['directory']:
+        directory = validate_directory(options['directory'])
+    if cli_patterns:
+        compiled_pattern = compile_cli_patterns(cli_patterns)
+    else:
+        if options['file']:
+            cleanfile = validate_cleanfile(options['file'])
+        else:
+            cleanfile = find_cleanfile(directory)
+        options = merge(options, parse_cleanfile_options(cleanfile))
+        compiled_pattern = compile_cleanfile_patterns(cleanfile)
+
+    if options['verbose']:
+        print(f'Cleanfile: {cleanfile}\tDirectory: {directory}\n'
+              f'Options: {options}')
+
+    walk = os.walk(directory)
+    if options['recursive']:
+        for dirname, dirs, files in walk:
+            clean_files((dirname, dirs, files), compiled_pattern, options)
+            if options['rmdir']:
+                clean_dirs((dirname, dirs, files), compiled_pattern, options)
+    else:
+        walkinfo = next(walk)
+        clean_files(walkinfo, compiled_pattern, options)
+        if options['rmdir']:
+            clean_dirs(walkinfo, compiled_pattern, options)
+
+    if options['verbose']:
+        print('Done')
+
+
+def init_options(cli_options):
+    """Init program options based on cli input (cli_options)"""
+    options = {'file': '', 'directory': '', 'ask': False, 'dry': False,
+               'rmdir': False, 'recursive': False, 'verbose': False}
+    for option, value in cli_options:
         if option in ('-a', '--ask'):
-            app_state['flags']['ask'] = True
+            options['ask'] = True
         elif option in ('-d', '--rmdir'):
-            app_state['flags']['rmdir'] = True
+            options['rmdir'] = True
         elif option in ('-r', '--recursive'):
-            app_state['flags']['recursive'] = True
+            options['recursive'] = True
         elif option in ('-v', '--verbose'):
-            app_state['flags']['verbose'] = True
+            options['verbose'] = True
         elif option == '--dry':
-            app_state['flags']['dry'] = True
+            options['dry'] = True
         elif option in ('-f', '--file'):
-            app_state['cleanfile'] = os.path.expanduser(value)
+            options['file'] = os.path.expanduser(value)
         elif option == '--directory':
-            app_state['directory'] = os.path.expanduser(value)
+            options['directory'] = os.path.expanduser(value)
         elif option == '--help':
-            print_dialog(0)
-            exit()
+            print_help()
         elif option == '--version':
-            print_dialog(1)
-            exit()
-    return app_state
+            print_version()
+    return options
 
-def print_dialog(id):
-    """Print dialogs: -1 first line of help; 0 help; 1 version"""
-    help = '''Usage: clean [ OPTIONS ]... [ PATTERNS ]
-Cleans a directory based on specified patterns.
 
-If PATTERNS are not specified, the script will search DIRECTORY for a file named
-'cleanfile'. Each pattern is treated as an extended regular expression.
+def print_help():
+    """Print help and exit"""
+    dialog = '''Usage: clean [ OPTIONS ]... [ PATTERNS ]
+    Cleans a directory based on specified patterns.
 
-    -f, --file=FILE             Cleanfile to read if no patterns are given.
-        --directory=DIRECTORY   The directory to clean. (default './').
-    -a, --ask                   Ask for confirmation before removal.
-        --dry                   Only print out the actions.
-    -d, --rmdir                 Remove directories.
-                                BEWARE: Everything inside the directories will
-                                be removed recursively without asking, even with 
-                                '--ask'.
-    -r, --recursive             Recurse into subdirectories.
-    -v, --verbose               Use verbose output.
-        --help                  Print this dialog.
-        --version               Print dialog about version.
+    If PATTERNS are not specified, the script will search DIRECTORY for a file
+    named 'cleanfile'. Each pattern is treated as an extended regular expression.
 
-Cleanfile specification:
-    A 'cleanfile' is a plain text file containing the patterns to use separated
-    by space, horizontal tab, newline or a combination of them. Comments are
-    supported and are delimited by '#'.  Everything after '#' until a newline
-    is considered a comment.
+        -f, --file=FILE             Cleanfile to read if no patterns are given.
+            --directory=DIRECTORY   The directory to clean. (default './').
+        -a, --ask                   Ask for confirmation before removal.
+            --dry                   Only print out the actions.
+        -d, --rmdir                 Remove directories.
+                                    BEWARE: Everything inside the directories will
+                                    be removed recursively without asking, even with
+                                    '--ask'.
+        -r, --recursive             Recurse into subdirectories.
+        -v, --verbose               Use verbose output.
+            --help                  Print this dialog.
+            --version               Print dialog about version.
 
-    By beginning the first line of the file with '#!' some flags can be set to 
-    either 0 (disabled) or 1 (enabled). The flags must be separated by a 
-    whitespace.
+    Cleanfile specification:
+        A 'cleanfile' is a plain text file containing the patterns to use separated
+        by space, horizontal tab, newline or a combination of them. Comments are
+        supported and are delimited by '#'.  Everything after '#' until a newline
+        is considered a comment.
 
-    Flag:           Effect:
-    ask             Do not/do ask for confirmation (default = 0)
-    rm-dir          Do not/do delete directories (dafault = 0)
-    recursive       Turn off/on recurse into subdirectories (default = 0)
-    verbose         Do not/do use verbose output (default = 0)
+        By beginning the first line of the file with '#!' some flags can be set to
+        either 0 (disabled) or 1 (enabled). The flags must be separated by a
+        whitespace.
 
-Examples:
-    cleanfile:
-        #! ask=1 verbose=1
-        alpha.* beta.* # Remove every file beginning with 'alpha' and 'beta'
-        
-    command:
-        clean -ar -f~/file      Clean CWD, asking for confirmation, recursing
-                                into subdirectories using ~/file as the
-                                cleanfile.'''
-    version = '''clean - BreadyX's utils (BXU). Version 8.2019.0
+        Flag:           Effect:
+        ask             Do not/do ask for confirmation (default = 0)
+        rm-dir          Do not/do delete directories (dafault = 0)
+        recursive       Turn off/on recurse into subdirectories (default = 0)
+        verbose         Do not/do use verbose output (default = 0)
+
+    Examples:
+        cleanfile:
+            #! ask=1 verbose=1
+            alpha.* beta.* # Remove every file beginning with 'alpha' and 'beta'
+
+        command:
+            clean -ar -f~/file      Clean CWD, asking for confirmation, recursing
+                                    into subdirectories using ~/file as the
+                                    cleanfile.'''
+    print(dialog)
+    exit()
+
+
+def print_version():
+    """Print version and exit"""
+    version = '''clean - BreadyX's utils (BXU). Version 9.2019.1
     Written by BreadyX. Contacts (for bug reports and other):
     "GitHub repo (BXU):  https://github.com/BreadyX/bxu'''
-    if id == -1:
-        return help.splitlines()[0]
-    elif id == 0:
-        print(help)
-    elif id == 1:
-        print(version)
+    print(version)
+    exit()
+
+
+def compile_cli_patterns(cli_patterns):
+    """Compile cli_patterns into a single regex expression and return it"""
+    joined_cli_patterns = '(' + ')|('.join(cli_patterns) + ')'
+    patterns = compile(joined_cli_patterns)
+    return patterns
+
+
+def validate_cleanfile(to_validate):
+    """Verifify that 'to_validate' is a valid file then return it"""
+    if not os.path.isfile(to_validate):
+        raise ValueError(f'cleanfile {to_validate} is not a valid file')
+    return to_validate
+
+
+def validate_directory(to_validate):
+    """Verifify that 'to_validate' is a valid directory then return it"""
+    if not os.path.isdir(to_validate):
+        raise ValueError(f'{to_validate} is not a valid directory')
+    return to_validate
+
 
 def find_cleanfile(directory):
-    """Construct cleanfile path based in 'directory'. If 'directory' is not a 
-    valid directory or the constructed path isn't a valid file, throw 
-    ValueError"""
-    if not os.path.isdir(directory):
-        raise ValueError(f'{directory} is not a valid directory')
-    path = os.path.join(directory, 'cleanfile')
-    if not os.path.isfile(path):
-        raise ValueError(f'cleanfile {path} is not a valid file')
-    return path
+    """
+    Construct path then check the existance of the result. If it doesn't exist,
+    raise ValueError.
 
-def get_cleanfile_args(cleanfile, app_flags):
-    """Read file with path 'cleanfile', search for the header and if found
-    parse the flags read and modify 'app_flags' accordingly. At last return 
-    the modified 'app_flags'"""
-    flag_regex = compile(f'({"|".join(app_flags.keys())})=(.*)')
-    read_flags = ''
-    with open(cleanfile) as f:
-        if f.read(2) == '#!':
-            read_flags = f.readline().split()
+    Return the validated path.
+    """
+    return validate_cleanfile(os.path.join(directory, 'cleanfile'))
+
+
+def parse_cleanfile_options(cleanfile):
+    """
+    Read file with path 'cleanfile', search for the header and if found
+    parse the options. At last return the parsed options.
+    """
+    flags = {'ask': False, 'rmdir': False, 'recursive': False,
+             'verbose': False}
+    flag_regex = compile(f'({"|".join(flags.keys())})=([0-1])')
+    read_flags = []
+    with open(cleanfile) as file:
+        if file.read(2) == '#!':
+            read_flags = file.readline().rstrip('\n').split()
         else:
-            return app_flags
+            return flags
     for flag in read_flags:
         match = flag_regex.search(flag)
         if not match:
-            raise RuntimeError(f'{flag} is not valid')
+            raise ValueError(f'{flag} in cleanfile is not valid')
         flag_name, flag_value = match.groups()
-        app_flags[flag_name] = bool(int(flag_value))
-    return app_flags
+        flags[flag_name] = bool(flag_value)
+    return flags
 
-def parse_patterns_from_cleanfile(cleanfile):
-    """Clean file with path 'cleanfile' using awk and obtain the 'raw' regex
-    patterns then parse them"""
+
+def merge(into, other):
+    """Merge option list 'other' into 'into' and ther return 'into'"""
+    for into_key in into.keys():
+        if into_key in other:
+            into[into_key] = other[into_key]
+    return into
+
+
+def compile_cleanfile_patterns(cleanfile):
+    """
+    Clean file with path 'cleanfile' using awk making them similar to the cli
+    ones and compile the regular expressions with compile_cli_patterns.
+
+    Return compiled patterns.
+    """
     awk_script = r'''
         BEGIN { OFS = FS = "\"" }
-        { 
+        {
             $0 = gensub(/#.*$/, "", "g"); # Remove comments
             $0 = gensub(/ *$/, "", "g"); # Remove trailing
             $0 = gensub(/^ */, "", "g"); # Remove trailing
-            for (i=1; i<=NF; i+=2) { 
+            for (i=1; i<=NF; i+=2) {
                 gsub(/[ \t]/, "\n", $i); # Split except in quotes
-            } 
+            }
             $0 = gensub(/"/, "", "g"); # Remove quotes
             if (NF>0 && NR!=1) { print; } # Remove empty lines
         }'''
     raw_patterns = check_output(['awk', awk_script, cleanfile])
     raw_patterns = raw_patterns.decode(stdout.encoding)
-    return parse_raw_patterns(raw_patterns.splitlines)
+    return compile_cli_patterns(raw_patterns.splitlines)
 
-def parse_raw_patterns(raw_patterns):
-    """Compile raw_patterns into a single regex expression and return it"""
-    joined_raw_patterns = '(' + ')|('.join(raw_patterns) + ')'
-    patterns = compile(joined_raw_patterns)
-    return patterns
 
-def clean (root_dir, dirs, files, patterns, ask, dry, rmdir, verbose):
-    """Delete each file in 'files' if it matches with 'patterns'.
-    If 'rmdir' also delete every directory in 'dirs'. The flags (ask, dry, 
-    verbose) modify the deletion by doing what their nam implies"""
-    for filename in files:
-        if not (patterns.search(filename) and 
-                patterns.search(filename).group(0)) or filename == 'cleanfile':
+def clean_files(walkinfo, pattern, options):
+    """
+    Delete each file in 'walkinfo[2]' if it matches with 'pattern'.
+    If 'rmdir' also delete every directory in 'dirs'. The flags (ask, dry,
+    verbose) modify the deletion by doing what their name implies
+    """
+    for fname in walkinfo[2]:
+        match = pattern.search(fname)
+        if (not (match and match.group(0))) or fname == 'cleanfile':
             continue
-        remove_file(os.path.join(root_dir, filename), ask, dry, verbose)
-    if rmdir:
-        for dirname in dirs:
-            if not (patterns.search(dirname) and 
-                    patterns.search(dirname).group(0)):
-                continue
-            remove_directory(os.path.join(root_dir, dirname), ask, dry, verbose)
-            
-def remove_file(path, ask, dry, verbose):
-    """Remove a file with 'path'. If ask, ask for confirmation; if dry only 
-    print the action and if verbose use verbose output."""
-    if ask and not ask_confirmation(path, 'file'):
-        return
-    if not dry:
-        os.remove(path)
-    if verbose or dry:
-        print(f'Deleted file: {path}')
+        if options['dry']:
+            print(f'Deleted {fname}')
+        else:
+            remove_file(os.path.join(walkinfo[0], fname), options)
 
-def remove_directory(path, ask, dry, verbose):
-    """Remove a directory with 'path'. If ask, ask for confirmation; if dry only 
-    print the action and if verbose use verbose output. If directory is not
-    empty delete every file and directory inside it recursively 
-    (basically rm -rf path)."""
-    if ask and not ask_confirmation(path, 'directory'):
+
+def clean_dirs(walkinfo, pattern, options):
+    """
+    Delete each dir recursively in 'walkinfo[1]' if it matches with 'pattern'.
+    """
+    for dirname in walkinfo[1]:
+        match = pattern.search(dirname)
+        if not (match and match.group(0)):
+            continue
+        if options['dry']:
+            print(f'Deleted {dirname}')
+        remove_dir(os.path.join(walkinfo[0], dirname), options)
+
+
+def remove_file(path, options):
+    """Remove 'path'. If ask option is set, ask for confirmation before"""
+    if options['ask'] and not ask_confirmation(path, 'file'):
         return
-    if not dry:
+    if options['verbose']:
+        print(f'Deleted file: {path}')
+    try:
+        os.remove(path)
+    except OSError as error:
+        if error.errno == 13:  # Errno 13: permission denied
+            print(f'Skipping {path}: permission denied')
+            return
+        raise error
+
+
+def remove_dir(path, options):
+    """
+    Remove 'path'. If ask option is set, ask for confirmation before.
+
+    If directory is not empty delete every file and directory inside it
+    (basically rm -rf path).
+    """
+    if options['ask'] and not ask_confirmation(path, 'directory'):
+        return
+    try:
+        os.rmdir(path)
+    except OSError as error:
+        if error.errno == 13:  # Errno13: permission denied
+            print(f'Skipping {path}: permission denied')
+            return
+        if error.errno != 39:  # Errno 39: directory is not empty
+            raise error
+        recursive_options = options.copy()
+        recursive_options['ask'] = False
+        recursive_options['verbose'] = False
+        for walkinfo in os.walk(path):
+            clean_files(walkinfo, compile('.*'), recursive_options)
+            clean_dirs(walkinfo, compile('.*'), recursive_options)
         try:
             os.rmdir(path)
-        except OSError as e:
-            if e.errno == 39:
-                for dirname, dirs, files in os.walk(path):
-                    clean(dirname, dirs, files, compile('.*'), False, dry, 
-                          True, False)
-                os.rmdir(path)
-            else:
-                raise e
-    if verbose or dry:
-        print(f'Deleted directory: {path}')
-            
-def ask_confirmation(path, typ=''):
-    """Ask user for confirmation and return the outcome. Loop until user gives
-    a valid answer"""
-    delete = '\033[0G\033[2K'
-    up_delete = f'\033[1A{delete}'
-    while True:
-        try:
-            answer = input(f'Delete {typ} {path}? [y/n] ')
-            if answer == 'y':
-                print(up_delete, end='')
-                return True
-            elif answer == 'n':
-                print(up_delete, end='')
-                return False
-            else:
-                print(up_delete, end='')
-        except EOFError:
-            print(delete, end='')
+        except OSError:
+            print(f'Cannot remove {path}. Check directory permissions')
+            return
 
-def main():
-    """Main function. 'state' is a dictionary containing every information
-    that is tied to the behaviour of the program."""
-    state = {'patterns': None, 'raw_patterns': [], 
-             'cleanfile': "", 'directory': "./", 
-             'flags': {'ask': False, 'dry': False, 'rmdir': False, 
-                       'recursive': False, 'verbose': False}}
-    state = get_cli_args(argv[1:], state)
-    if not state['raw_patterns']:
-        if not state['cleanfile']:
-            state['cleanfile'] = find_cleanfile(state['directory'])
-        state['flags'] = get_cleanfile_args(state['cleanfile'], state['flags'])
-        state['patterns'] = parse_patterns_from_cleanfile(state['cleanfile'])
-    else:
-        state['patterns'] = parse_raw_patterns(state['raw_patterns'])
-    
-    if state['flags']['verbose']:
-        print('Cleanfile: "' + state['cleanfile'] + '", ' +
-              'directory: "' + state ['directory'] + '".\n' +
-              'Flags: ' + str(state['flags']))
-    if not state['flags']['recursive']:
-        dir_info = next(os.walk(state['directory']))
-        clean(*dir_info, state['patterns'], state['flags']['ask'], 
-              state['flags']['dry'], state['flags']['rmdir'], 
-              state['flags']['verbose'])
-    else:
-        for dirname, dirs, files in os.walk(state['directory']):
-            clean(dirname, dirs, files, state['patterns'], state['flags']['ask'], 
-                  state['flags']['dry'], state['flags']['rmdir'], 
-                  state['flags']['verbose'])
-    if state['flags']['verbose']:
-        print('Done')
-        
+    if options['verbose']:
+        print(f'Deleted directory: {path}')
+
+
+def ask_confirmation(path, type_to_remove):
+    """
+    Ask user for confirmation and return the outcome. Loop until user gives
+    a valid answer
+    """
+    csi_up_one_delete_line = f'\033[1A\033[0G\033[2K'
+    while True:
+        answer = 'n'
+        try:
+            answer = input(f'Delete {type_to_remove} {path}? [y/n] ')
+        except EOFError:
+            exit()
+        if answer == 'y':
+            print(csi_up_one_delete_line, end='')
+            return True
+        if answer == 'n':
+            print(csi_up_one_delete_line, end='')
+            return False
+        print(csi_up_one_delete_line, end='')
+
+
 def format_error(string):
     """Format with coloring and stuff an error message 'string'"""
-    RED = "\033[31m"
-    RST = "\033[0m"
-    return (f'{RED}Error: {string}{RST}.\n{print_dialog(-1)}\n'
+    sgr_red = "\033[31m"
+    sgr_rst = "\033[0m"
+    return (f'{sgr_red}Error: {string}{sgr_rst}.\n'
             'Use clean --help for more info.')
+
 
 if __name__ == '__main__':
     try:
+        if os.geteuid() == 0:
+            print('RUNNING WITH ROOT PRIVILEGES. BE CAREFUL!')
+            input('Press any key to continue...')
         main()
     except (KeyboardInterrupt, SystemExit):
         pass
-    except Exception as e:
+    except ValueError as error:
         if os.environ.get('CLEAN_DEBUG'):
-            raise e
-        print(format_error(str(e)))
+            raise error
+        print(format_error(str(error)))
         exit(1)
