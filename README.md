@@ -7,11 +7,12 @@ easier.
 ### General requirements
 - Arch Linux (trying to make the scripts the most distro-agnostic possible)
 - POSIX compliant shell (`bash`, `dash` or others)
-- python for some scripts
 
 ### Program specific requirements
 - grub (change-boot)
 - git (git-hud)
+- python (clean)
+- awk (clean)
 
 ## Installation
 ### Automated
@@ -19,9 +20,31 @@ Run the provided `install.sh` script. By default it will install the scripts in
 `$HOME/.local/bin/`. The user can also specify another directory by passing the
 `--otherbin` option. 
 
-[//]: # It is strongly advised to **not** install the scripts in a system-wide bin 
-[//]: # folder (such as `/usr/local/bin`) for security reasons.
-
 ### Manual
-Copy all scripts inside the project directory into a folder of your choice and
+Copy all executables inside the project directory into a folder of your choice and
 add it to your PATH.
+
+## Contents
+Here's a run-through of all of the scripts and their functionality. I remind you
+that all the information can be found inside the help dialog of each program
+(`--help` option).
+
+### change-boot (sh)
+`change-boot` is a shell script that lets you change your default grub entry
+by changing the `GRUB_DEFAULT` option in the grub config file for you with the
+correct value.
+
+- Syntax: `change-boot [TYPE|OPTION]`
+- TYPEs:
+	- `linux`: the default kernel
+	- `linux-lts`: the long term support kernel
+- OPTIONs:
+	- `--info`: show info about installed kernels
+	- `--help`: show help dialog
+	- `--version`: show version info
+
+### clean (python 3)
+`clean` is one of the most complex utilities here. It aims to mirror what `make`
+does, but instead of creating it deletes. 
+
+`clean` uses a 'cleanfile', 
