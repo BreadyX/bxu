@@ -21,13 +21,15 @@ Run the provided `install.sh` script. By default it will install the scripts in
 `--otherbin` option. 
 
 ### Manual
-Copy all executables inside the project directory into a folder of your choice and
-add it to your PATH.
+Copy all executables inside the `utils` directory into a folder of your choice and
+add that folder to your PATH.
 
 ## Contents
 Here's a run-through of all of the scripts and their functionality. I remind you
 that all the information can be found inside the help dialog of each program
 (`--help` option).
+
+# WIP from here onwards
 
 ### change-boot (sh)
 `change-boot` is a shell script that lets you change your default grub entry
