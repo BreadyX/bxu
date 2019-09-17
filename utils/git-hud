@@ -1,9 +1,9 @@
-#! /bin/sh -e
+#! /bin/sh
 
 # Print formatted information about the git repository, if it exists, in the
 # current directory.
 
-VERSION="0.1"
+VERSION="0.1-1"
 dialog() {
     # Print help or version dialog depending on argument. If 'help' print the help #
     # one, if 'version' print the version one.                                     #
