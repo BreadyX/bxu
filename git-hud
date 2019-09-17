@@ -76,16 +76,17 @@ prompt() {
     BRANCH_GLYPH='\|'
     AHEAD_GLYPH='^'
     BEHIND_GLYPH='v'
-    if [ -n "GIT_HUD_GLYPH" ]; then
+    if [ -n "$GIT_HUD_GLYPH" ]; then
         BRANCH_GLYPH=''
         AHEAD_GLYPH=''
         BEHIND_GLYPH=''
     fi
     REPOINFO="$(git status --porcelain --branch)"
 
-    printf "%s; [%s] [%s]" "$BRANCH_GLYPH $BRANCH ($LATEST_COMMIT)" \
-        "$AHEAD_GLYPH $AHEAD $BEHIND_GLYPH $BEHIND" \
-        "$UNSTAGE$UNTRACK$UNPUSH$STASH"
+    [ -f "$1/.git/refs/stash" ] && STASH="$"
+
+    printf "%s; [%s] [%s]" "$BRANCH_GLYPH $BRANCH ($LATESTCOMMIT)" \
+        "$AHEAD_GLYPH $AHEAD $BEHIND_GLYPH $BEHIND" "$UNSTAGE$UNTRACK$STASH"
 
 }
 
