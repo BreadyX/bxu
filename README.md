@@ -44,9 +44,3 @@ correct value.
 	- `--info`: show info about installed kernels
 	- `--help`: show help dialog
 	- `--version`: show version info
-
-### clean (python 3)
-`clean` is one of the most complex utilities here. It aims to mirror what `make`
-does, but instead of creating it deletes. 
-
-`clean` uses a 'cleanfile', 
