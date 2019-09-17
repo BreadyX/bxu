@@ -39,38 +39,6 @@ dialog() {
     exit 0
 }
 
-# # Print prompt after assinging all the correct values
-# prompt() {
-#     ## git status --porcelain --branch -> get all info about repo
-#     # Status-related variables
-#     UNPUSH=""
-#     # Check if we want fontawesome glyphs disabled
-#     if [ -n "$GIT_HUD_GLYPH" ]; then BRANCH_GLYPH="|/"
-#     else BRANCH_GLYPH=""; fi
-#     if (grep -q 'ref: ' "$1/.git/HEAD"); then
-#         BRANCH="$(cut -d'/' -f3 "$1/.git/HEAD")"
-#         commit_file="$1/.git/$(cut -d' ' -f2 "$1/.git/HEAD")"
-#         [ -f "$commit_file" ] && LATEST_COMMIT="$(cut -b 1,2,3,4,5,6,7 "$commit_file")"
-#         ### Check for unpushed
-#     else
-#         BRANCH='-'
-#         LATEST_COMMIT="$(cut -b 1,2,3,4,5,6,7 "$1/.git/HEAD")"
-#         ### Check for unpushed
-#     fi
-#     if [ -f "$1/.git/refs/stash" ]; then STASH="$"
-#     else STASH=""; fi
-#     # Unpushed commits
-#     # [ -n "$(git cherry -v)" ] && UNPUSH="+"
-#     # Unstaged and untracked files/changes
-#     UNSTAGE=""
-#     UNTRACK=""
-#     MODS="$(git status -u -s)"
-#     (echo "$MODS" | grep -q '^A\|^ M\|^  D') && UNSTAGE="*"
-#     (echo "$MODS" | grep -q '??') && UNTRACK="?"
-#     # Output
-#     printf "%s; [%s]" "$BRANCH_GLYPH $BRANCH ($LATEST_COMMIT)" "$UNSTAGE$UNTRACK$UNPUSH$STASH"
-# }
-
 prompt() {
     # Print the prompt #
     BRANCH_GLYPH='\|'
@@ -82,12 +50,21 @@ prompt() {
         BEHIND_GLYPH=''
     fi
     REPOINFO="$(git status --porcelain --branch)"
-
+    # Stuff that can be extrapolated from the first line
+    FIRSTLINE="$(echo "$REPOINFO" | grep '^##')"
+    BRANCH="$(echo "$FIRSTLINE" | awk -F'[.][.][.]' '{print substr($1, 4)}')"
+    AHEAD="$(echo "$FIRSTLINE" | awk '{print substr($4, 1, 1)}')"
+    BEHIND="$(echo "$FIRSTLINE" | awk '{print substr($6, 1, 1)}')"
+    LATESTCOMMIT="$(cut -c 1,2,3,4,5,6,7 "$1/.git/refs/heads/$BRANCH")"
+    # Stuff that can be extrapolated from everywhere else
+    MODS="$(echo "$REPOINFO" | grep -v '^##')"
+    (echo "$MODS" | grep -q '^A\|^ M\|^  D') && UNSTAGE="*"
+    (echo "$MODS" | grep -q '??') && UNTRACK="?"
+    # other
     [ -f "$1/.git/refs/stash" ] && STASH="$"
-
+    # Print prompt
     printf "%s; [%s] [%s]" "$BRANCH_GLYPH $BRANCH ($LATESTCOMMIT)" \
         "$AHEAD_GLYPH $AHEAD $BEHIND_GLYPH $BEHIND" "$UNSTAGE$UNTRACK$STASH"
-
 }
 
 # Eval arguments
@@ -98,11 +75,14 @@ case $1 in
         dialog 'version' ;;
     "") ;;
     *)
-        err "Invalid argument '$1', please check help dialog for info" ;;
+        RED=$(tput setaf 1)
+        RST=$(tput sgr0)
+        printf "${RST}E: ${RED}Invalid argument %s, please check help dialog for info.${RST}" "$1" >&2
+        exit 1
+        ;;
 esac
 
 GITDIR="$(git rev-parse --show-toplevel 2>/dev/null)"
 [ -n "$GITDIR" ] && prompt "$GITDIR"
 
-# Exit because we are all done and everything is good
 exit 0
