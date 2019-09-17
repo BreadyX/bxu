@@ -4,6 +4,11 @@ INSTALLDIR="$HOME/.local/bin"
 
 # Parse arguments
 case "$1" in
+	--otherbin)
+		printf "Setting install directory to %s\n" "$2"
+		INSTALLDIR="$2" ;;
+    "")
+        ;;
 	--help|*)
 		cat << EOF
 install.sh [--otherbin path]
@@ -12,17 +17,14 @@ This scripts installs the BreadyX's Utils.
 By deafult it installs in "$INSTALLDIR", but it can be changed by passing the
 option --otherbin and giving a path.
 EOF
-		;;
-	--otherbin)
-		printf "Setting install directory to %s\n" "$2"
-		INSTALLDIR="$2"
+		exit 0 ;;
 esac
 
 # Prompt user
-printf "This script will install the BreadyX utils (BXU) inside $INSTALLDIR\n"
-read -rp "Proceeed? [Y/n] " i
-[ "$(echo "$i" | tr [:upper] [:lower])" = "n" ] && { 
-	printf "Aborted by user"
+printf "This script will install the BreadyX utils (BXU) inside %s\nProceed? [y/n] " "$INSTALLDIR"
+read -r i
+[ "$(echo "$i" | tr "[:upper]" "[:lower]")" = "n" ] && {
+	printf "Aborted by user\n"
 	exit 0
 }
 
