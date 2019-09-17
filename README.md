@@ -29,6 +29,8 @@ Here's a run-through of all of the scripts and their functionality. I remind you
 that all the information can be found inside the help dialog of each program
 (`--help` option).
 
+# VVV TODO VVV
+
 ### change-boot (sh)
 `change-boot` is a shell script that lets you change your default grub entry
 by changing the `GRUB_DEFAULT` option in the grub config file for you with the
@@ -42,9 +44,3 @@ correct value.
 	- `--info`: show info about installed kernels
 	- `--help`: show help dialog
 	- `--version`: show version info
-
-### clean (python 3)
-`clean` is one of the most complex utilities here. It aims to mirror what `make`
-does, but instead of creating it deletes. 
-
-`clean` uses a 'cleanfile', 
