@@ -81,6 +81,7 @@ prompt() {
         AHEAD_GLYPH=''
         BEHIND_GLYPH=''
     fi
+    REPOINFO="$(git status --porcelain --branch)"
 
     printf "%s; [%s] [%s]" "$BRANCH_GLYPH $BRANCH ($LATEST_COMMIT)" \
         "$AHEAD_GLYPH $AHEAD $BEHIND_GLYPH $BEHIND" \
