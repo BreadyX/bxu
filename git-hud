@@ -3,18 +3,7 @@
 # Print formatted information about the git repository, if it exists, in the
 # current directory.
 
-### TODO: optimize things (use git rev-parse and git status --porcelain)
-### TODO: do not show unpushed commits if no remote is found
-
-VERSION="8.2019.2"
-err() {
-    # Pretty print errors #
-    RED=$(tput setaf 1)
-    RESET=$(tput sgr0)
-    printf "E: %s\n" "$RESET$RED$1$RESET" >&2
-    exit 1
-}
-
+VERSION="0.1"
 dialog() {
     # Print help or version dialog depending on argument. If 'help' print the help #
     # one, if 'version' print the version one.                                     #
@@ -22,7 +11,7 @@ dialog() {
     Format a quick summary about the current git repository and print it to standard
     output.
 
-    If environment variable GIT_HUD_GLYPH is set the script will use fontawesome glyphs.
+    If environment variable GIT_HUD_GLYPH is set, the script will use fontawesome glyphs.
 
         --help      Print this dialog
         --version   Print dialog containing info about version"
