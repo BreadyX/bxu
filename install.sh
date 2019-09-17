@@ -34,11 +34,11 @@ read -r i
 	exit 1
 }
 
-# Remove unwanted files
-files="$(ls -a | grep -Ev "(^\.|deprecated|install\.sh|README)" | tr '\n' ' ')"
+# get files
+files="$(find ./utils/ -type f | tr "\n" " ")"
 
 # Make file executables if they are not
 chmod +x $files
 
 # Copy files to INSTALLDIR
-cp -i $files "$INSTALLDIR"
+cp -ui $files "$INSTALLDIR"
