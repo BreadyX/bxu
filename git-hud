@@ -14,96 +14,93 @@ err() {
     printf "E: %s\n" "$RESET$RED$1$RESET" >&2
     exit 1
 }
-info_dialog() {
+
+dialog() {
     # Print help or version dialog depending on argument. If 'help' print the help #
     # one, if 'version' print the version one.                                     #
-    HELP_DIALOG="Usage: git-hud [ OPTION | LEVELS ]
-Format a quick summary about the current git repository and print it to standard
-output.
+    HELP_DIALOG="Usage: git-hud [ OPTION ]
+    Format a quick summary about the current git repository and print it to standard
+    output.
 
-The script recurses up LEVELS looking for a '.git' directory (default 1).
-LEVELS has a range of 0 to 99. If passed LEVELS is outside that range, it won't
-be seen as a valid argument.
+    If environment variable GIT_HUD_GLYPH is set the script will use fontawesome glyphs.
 
-If environment variable GIT_HUD_GLYPH is set to 'N' the script won't use any of
-the fontawesome glyphs.
-
-    --help      Print this dialog
-    --version   Print dialog containing info about version
-
-Example: git-hud 5"
+        --help      Print this dialog
+        --version   Print dialog containing info about version"
     VERSION_DIALOG="git-hud - BreadyX's utils (BXU). Version $VERSION
-Written by BreadyX, contacts (for bug reports and other):
-    Github profile:     https://github.com/BreadyX
-    GitHub repo (BXU):  https://github.com/BreadyX/bxu"
-    if [ "$1" = 'help' ]; then
-        printf "%s\n\n%s\n" "$HELP_DIALOG" "$VERSION_DIALOG"
-    elif [ "$1" = 'version' ]; then
-        printf "%s\n" "$VERSION_DIALOG"
-    fi
+    Written by BreadyX, contacts (for bug reports and other):
+        Github profile:     https://github.com/BreadyX
+        GitHub repo (BXU):  https://github.com/BreadyX/bxu"
+    case $1 in
+        'help')
+            printf "%s\n" "$HELP_DIALOG" ;;
+        'version')
+            printf "%s\n" "$VERSION_DIALOG" ;;
+    esac
     exit 0
 }
 
-# Print prompt after assinging all the correct values
-draw_prompt() {
-    ## git rev-parse --show-toplevel 2>/dev/null -> get abs path to .git
-    ## git status --porcelain --branch -> get all info about repo
-    # Status-related variables
-    UNPUSH=""
-    # Check if we want fontawesome glyphs disabled
-    if [ -n "$GIT_HUD_GLYPH" ]; then BRANCH_GLYPH="|/"
-    else BRANCH_GLYPH=""; fi
-    if (grep -q 'ref: ' "$1/.git/HEAD"); then
-        BRANCH="$(cut -d'/' -f3 "$1/.git/HEAD")"
-        commit_file="$1/.git/$(cut -d' ' -f2 "$1/.git/HEAD")"
-        [ -f "$commit_file" ] && LATEST_COMMIT="$(cut -b 1,2,3,4,5,6,7 "$commit_file")"
-        ### Check for unpushed
-    else
-        BRANCH='-'
-        LATEST_COMMIT="$(cut -b 1,2,3,4,5,6,7 "$1/.git/HEAD")"
-        ### Check for unpushed
+# # Print prompt after assinging all the correct values
+# prompt() {
+#     ## git status --porcelain --branch -> get all info about repo
+#     # Status-related variables
+#     UNPUSH=""
+#     # Check if we want fontawesome glyphs disabled
+#     if [ -n "$GIT_HUD_GLYPH" ]; then BRANCH_GLYPH="|/"
+#     else BRANCH_GLYPH=""; fi
+#     if (grep -q 'ref: ' "$1/.git/HEAD"); then
+#         BRANCH="$(cut -d'/' -f3 "$1/.git/HEAD")"
+#         commit_file="$1/.git/$(cut -d' ' -f2 "$1/.git/HEAD")"
+#         [ -f "$commit_file" ] && LATEST_COMMIT="$(cut -b 1,2,3,4,5,6,7 "$commit_file")"
+#         ### Check for unpushed
+#     else
+#         BRANCH='-'
+#         LATEST_COMMIT="$(cut -b 1,2,3,4,5,6,7 "$1/.git/HEAD")"
+#         ### Check for unpushed
+#     fi
+#     if [ -f "$1/.git/refs/stash" ]; then STASH="$"
+#     else STASH=""; fi
+#     # Unpushed commits
+#     # [ -n "$(git cherry -v)" ] && UNPUSH="+"
+#     # Unstaged and untracked files/changes
+#     UNSTAGE=""
+#     UNTRACK=""
+#     MODS="$(git status -u -s)"
+#     (echo "$MODS" | grep -q '^A\|^ M\|^  D') && UNSTAGE="*"
+#     (echo "$MODS" | grep -q '??') && UNTRACK="?"
+#     # Output
+#     printf "%s; [%s]" "$BRANCH_GLYPH $BRANCH ($LATEST_COMMIT)" "$UNSTAGE$UNTRACK$UNPUSH$STASH"
+# }
+
+prompt() {
+    # Print the prompt #
+    BRANCH_GLYPH='\|'
+    AHEAD_GLYPH='^'
+    BEHIND_GLYPH='v'
+    if [ -n "GIT_HUD_GLYPH" ]; then
+        BRANCH_GLYPH=''
+        AHEAD_GLYPH=''
+        BEHIND_GLYPH=''
     fi
-    if [ -f "$1/.git/refs/stash" ]; then STASH="$"
-    else STASH=""; fi
-    # Unpushed commits
-    # [ -n "$(git cherry -v)" ] && UNPUSH="+"
-    # Unstaged and untracked files/changes
-    UNSTAGE=""
-    UNTRACK=""
-    MODS="$(git status -u -s)"
-    (echo "$MODS" | grep -q '^A\|^ M\|^  D') && UNSTAGE="*"
-    (echo "$MODS" | grep -q '??') && UNTRACK="?"
-    # Output
-    printf "%s; [%s]" "$BRANCH_GLYPH $BRANCH ($LATEST_COMMIT)" "$UNSTAGE$UNTRACK$UNPUSH$STASH"
+
+    printf "%s; [%s] [%s]" "$BRANCH_GLYPH $BRANCH ($LATEST_COMMIT)" \
+        "$AHEAD_GLYPH $AHEAD $BEHIND_GLYPH $BEHIND" \
+        "$UNSTAGE$UNTRACK$UNPUSH$STASH"
+
 }
 
 # Eval arguments
-N_RECURSE=0
-CUR_LEVEL='./'
 case $1 in
     "--help")
-        info_dialog 'help' ;;
+        dialog 'help' ;;
     "--version")
-        info_dialog 'version' ;;
-    [0-9]|[0-9][0-9])
-        N_RECURSE="$1" ;;
-    "")
-        N_RECURSE=1 ;;
+        dialog 'version' ;;
+    "") ;;
     *)
         err "Invalid argument '$1', please check help dialog for info" ;;
 esac
 
-# Loop until N_RECURSE is 0. If a '.git' directory is found, draw the prompt and
-# break out of the loop, else go down one level and try again
-while [ "$N_RECURSE" -gt 0 ]; do
-    if [ -d "$CUR_LEVEL/.git" ]; then
-        draw_prompt "$CUR_LEVEL"
-        break
-    else
-        CUR_LEVEL="../$CUR_LEVEL"
-        N_RECURSE=$((N_RECURSE - 1))
-    fi
-done
+GITDIR="$(git rev-parse --show-toplevel 2>/dev/null)"
+[ -n "$GITDIR" ] && prompt "$GITDIR"
 
 # Exit because we are all done and everything is good
 exit 0
