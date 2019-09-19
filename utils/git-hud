@@ -3,7 +3,7 @@
 # Print formatted information about the git repository, if it exists, in the
 # current directory.
 
-VERSION="0.1-1"
+VERSION="0.1-2"
 dialog() {
     # Print help or version dialog depending on argument. If 'help' print the help #
     # one, if 'version' print the version one.                                     #
@@ -44,7 +44,8 @@ prompt() {
     BRANCH="$(echo "$FIRSTLINE" | awk -F'[.][.][.]' '{print substr($1, 4)}')"
     AHEAD="$(echo "$FIRSTLINE" | awk '{print substr($4, 1, 1)}')"
     BEHIND="$(echo "$FIRSTLINE" | awk '{print substr($6, 1, 1)}')"
-    LATESTCOMMIT="$(cut -c 1,2,3,4,5,6,7 "$1/.git/refs/heads/$BRANCH")"
+    LATESTCOMMIT="$(cut -c 1,2,3,4,5,6,7 "$1/.git/refs/heads/$BRANCH" 2>/dev/null \
+        || echo '???')"
     # Stuff that can be extrapolated from everywhere else
     MODS="$(echo "$REPOINFO" | grep -v '^##')"
     (echo "$MODS" | grep -q '^A\|^ M\|^  D') && UNSTAGE="*"
