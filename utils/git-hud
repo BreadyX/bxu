@@ -48,7 +48,7 @@ prompt() {
         || echo '???')"
     # Stuff that can be extrapolated from everywhere else
     MODS="$(echo "$REPOINFO" | grep -v '^##')"
-    (echo "$MODS" | grep -q '^A\|^ M\|^  D') && UNSTAGE="*"
+    (echo "$MODS" | grep -q ' *A\| *M\| *D') && UNSTAGE="*"
     (echo "$MODS" | grep -q '??') && UNTRACK="?"
     # other
     [ -f "$1/.git/refs/stash" ] && STASH="$"
