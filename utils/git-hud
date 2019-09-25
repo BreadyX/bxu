@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/sh -e
 
 # Print formatted information about the git repository, if it exists, in the
 # current directory.
@@ -30,6 +30,7 @@ dialog() {
 
 prompt() {
     # Print the prompt #
+    # Glyph init
     BRANCH_GLYPH='\|'
     AHEAD_GLYPH='^'
     BEHIND_GLYPH='v'
@@ -39,18 +40,26 @@ prompt() {
         BEHIND_GLYPH=''
     fi
     REPOINFO="$(git status --porcelain --branch)"
-    # Stuff that can be extrapolated from the first line
-    FIRSTLINE="$(echo "$REPOINFO" | grep '^##')"
-    BRANCH="$(echo "$FIRSTLINE" | awk -F'[.][.][.]' '{print substr($1, 4)}')"
-    AHEAD="$(echo "$FIRSTLINE" | awk '{print substr($4, 1, 1)}')"
-    BEHIND="$(echo "$FIRSTLINE" | awk '{print substr($6, 1, 1)}')"
-    LATESTCOMMIT="$(cut -c 1,2,3,4,5,6,7 "$1/.git/refs/heads/$BRANCH" 2>/dev/null \
-        || echo '???')"
-    # Stuff that can be extrapolated from everywhere else
-    MODS="$(echo "$REPOINFO" | grep -v '^##')"
-    (echo "$MODS" | grep -q ' *A\| *M\| *D') && UNSTAGE="*"
-    (echo "$MODS" | grep -q '??') && UNTRACK="?"
-    # other
+    # Get branch info
+    FIRSTLINE="$(echo "$REPOINFO" | head -n 1)"
+    BRANCH="$(echo "$FIRSTLINE" | cut -f2 -d' ')"
+    if [ "$BRANCH" = "HEAD" ]; then
+        BRANCH="HEAD" AHEAD="" BEHIND=""
+    else
+        BRANCH="$(echo "$BRANCH" | sed 's/\.\.\./\t/g' | cut -f1)"
+        AHEAD="$(echo "$FIRSTLINE" | awk '{print substr($4, 1, 1)}')"
+        BEHIND="$(echo "$FIRSTLINE" | awk '{print substr($6, 1, 1)}')"
+    fi
+    # Get latest commit
+    if [ "$(cut -f1 -d' ' "$1/.git/HEAD")" = 'ref:' ]; then
+        LATESTCOMMIT="$(cut -c 1,2,3,4,5,6,7 "$1/.git/refs/heads/$BRANCH")"
+    else
+        LATESTCOMMIT="$(cut -c 1,2,3,4,5,6,7 "$1/.git/HEAD")"
+    fi
+    # Get info about changes
+    (echo "$REPOINFO" | grep -q '^ *[DMAR]') && UNSTAGE="*"
+    (echo "$REPOINFO" | grep -q '??') && UNTRACK="?"
+    # Get stash
     [ -f "$1/.git/refs/stash" ] && STASH="$"
     # Print prompt
     printf "%s; [%s] [%s]" "$BRANCH_GLYPH $BRANCH ($LATESTCOMMIT)" \
