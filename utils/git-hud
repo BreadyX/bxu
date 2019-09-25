@@ -59,11 +59,12 @@ prompt() {
     # Get info about changes
     (echo "$REPOINFO" | grep -q '^ *[DMAR]') && UNSTAGE="*"
     (echo "$REPOINFO" | grep -q '??') && UNTRACK="?"
+    (echo "$REPOINFO" | grep -q 'UU') && UNMERGED="!"
     # Get stash
     [ -f "$1/.git/refs/stash" ] && STASH="$"
     # Print prompt
     printf "%s; [%s] [%s]" "$BRANCH_GLYPH $BRANCH ($LATESTCOMMIT)" \
-        "$AHEAD_GLYPH $AHEAD $BEHIND_GLYPH $BEHIND" "$UNSTAGE$UNTRACK$STASH"
+        "$AHEAD_GLYPH $AHEAD $BEHIND_GLYPH $BEHIND" "$UNSTAGE$UNTRACK$UNMERGED$STASH"
 }
 
 # Eval arguments
