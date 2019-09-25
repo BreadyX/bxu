@@ -1,11 +1,11 @@
 #! /bin/sh -e
 
-# Split FILE into multiple files by dividing it into multiple files with STEP 
+# Split FILE into multiple files by dividing it into multiple files with STEP
 # lines each named FILE_PREFIX plus the index. Finally put them in OUTPUT_DIRECTORY.
 
 VERSION="8.2019.2"
 
-err() { 
+err() {
     # Pretty print errors #
     RED=$(tput setaf 1)
     RESET=$(tput sgr0)
@@ -15,11 +15,11 @@ err() {
 info_dialog() {
     # Print help or version dialog depending on argument. If 'help' print the help #
     # one, if 'version' print the version one. If neither, throw confused error.   #
-    HELP_DIALOG="Usage: split [OPTION]... [FILE]
-Split FILE into multiple files by dividing it into multiple files with STEP 
+    HELP_DIALOG="Usage: bsplit [OPTION]... [FILE]
+Split FILE into multiple files by dividing it into multiple files with STEP
 lines each named FILE_PREFIX plus the index. Finally put them in OUTPUT_DIRECTORY.
 
-If FILE is omitted or is equal to '-', read from standard input. If no options are 
+If FILE is omitted or is equal to '-', read from standard input. If no options are
 specified, STEP is assumed to be 10, OUTPUT_DIRECTORY is './split' (if it
 doesn't exist it will be created) and FILE_PREFIX is 'part'.
 
@@ -30,12 +30,12 @@ doesn't exist it will be created) and FILE_PREFIX is 'part'.
     --help                          Print this dialog
     --version                       Print dialog containing info about version
 
-Examples: 
+Examples:
     split --step 5 file         Splits 'file' into files containing 5 lines each
                                 and puts them into './split'
     split --step 5 --output-dir './out/' file   Splits 'file' into files containing
                                                 5 lines each and puts them into './out'"
-    VERSION_DIALOG="split - BreadyX's utils (BXU). Version $VERSION
+    VERSION_DIALOG="bsplit - BreadyX's utils (BXU). Version $VERSION
 This program has been written by BreadyX, contacts (for bug reports and other):
     Github profile:     https://github.com/BreadyX
     GitHub repo (BXU):  https://github.com/BreadyX/bxu"
@@ -48,7 +48,7 @@ This program has been written by BreadyX, contacts (for bug reports and other):
 }
 
 # Arg eval values
-SHIFT=1  
+SHIFT=1
 FILE=""
 OUTPUT_DIR=""
 FILE_PREFIX="part"
@@ -58,12 +58,12 @@ STEP=10
 while [ $# -gt 0 ]; do
     case $1 in
         "--output-dir"|"--output-dir="*)
-            # First check if using '--option=' and then assign OUTPUT_DIR 
+            # First check if using '--option=' and then assign OUTPUT_DIR
             # depending on result
             if (echo "$1" | grep -q '\-\-output-dir='); then
                 OUTPUT_DIR="$(echo "$1" | sed 's/--output-dir=//')"
                 SHIFT=1
-            else 
+            else
                 OUTPUT_DIR="$2"
                 SHIFT=2
             fi
@@ -74,12 +74,12 @@ while [ $# -gt 0 ]; do
             # Shift arguments
             shift "$SHIFT" 2>/dev/null || err "Missing argument for --output-dir" ;;
         "--step"|"--step="*)
-            # First check if using '--option=' and then assign STEP 
+            # First check if using '--option=' and then assign STEP
             # depending on result
             if (echo "$1" | grep -q '\-\-step='); then
                 STEP="$(echo "$1" | sed 's/--step=//')"
                 SHIFT=1
-            else 
+            else
                 STEP="$2"
                 SHIFT=2
             fi
@@ -88,12 +88,12 @@ while [ $# -gt 0 ]; do
             # Shift arguments
             shift "$SHIFT" 2>/dev/null || err "Missing argument for --step" ;;
         "--file-prefix"|"--file-prefix="*)
-            # First check if using '--option=' and then assign FILE_PREFIX 
+            # First check if using '--option=' and then assign FILE_PREFIX
             # depending on result
             if (echo "$1" | grep -q '\-\-file-prefix='); then
                 FILE_PREFIX="$(echo "$1" | sed 's/--file-prefix=//')"
                 SHIFT=1
-            else 
+            else
                 FILE_PREFIX="$2"
                 SHIFT=2
             fi
@@ -114,7 +114,7 @@ while [ $# -gt 0 ]; do
             [ -z "$FILE" ] || err "Input file has been already specified."
             FILE="$1"
             # Check if FILE is legal
-            if ! [ -f "$FILE" ] && ! [ "$FILE" = '-' ]; then 
+            if ! [ -f "$FILE" ] && ! [ "$FILE" = '-' ]; then
                 err "Specified file $FILE is not a valid file"
             fi
             shift ;;
@@ -128,7 +128,7 @@ TOTAL_LINES=0
 if [ -z "$FILE" ] || [ "$FILE" = '-' ]; then
     CONTENT="$(tee)"
     TOTAL_LINES="$(echo "$CONTENT" | wc -l)"
-else 
+else
     TOTAL_LINES="$(wc -l "$FILE" | cut -f1 -d ' ')"
 fi
 # Assign the default OUTPUT_DIR if OUTPUT_DIR is not set
@@ -145,17 +145,17 @@ CURRENT_READ=""
 LOWER=0
 UPPER=0
 ITER=0
-# Start spliting loop. 
+# Start spliting loop.
 # It runs until the UPPER margin doesn't reach TOTAL_LINES
 while [ "$UPPER" -le "$TOTAL_LINES" ]; do
-    # Assign margins. LOWER is one above the previous UPPER and UPPER is 
+    # Assign margins. LOWER is one above the previous UPPER and UPPER is
     # STEP + 1 above the LOWER
     LOWER=$((UPPER+1))
     UPPER=$((LOWER+STEP-1))
     # Read from file or from STDIN based on the value of FILE
     if [ -z "$FILE" ] || [ "$FILE" = '-' ]; then
         CURRENT_READ="$(echo "$CONTENT" | sed -n "${LOWER},${UPPER}p")"
-    else 
+    else
         CURRENT_READ="$(sed -n "${LOWER},${UPPER}p" "$FILE")"
     fi
     # Output what we read to the correct output file. The name is created by
