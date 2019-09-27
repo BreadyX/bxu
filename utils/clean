@@ -132,7 +132,7 @@ def print_help():
 
 def print_version():
     """Print version and exit"""
-    version = '''clean - BreadyX's utils (BXU). Version 9.2019.1
+    version = '''clean - BreadyX's utils (BXU). Version 0.1-1
     Written by BreadyX. Contacts (for bug reports and other):
     "GitHub repo (BXU):  https://github.com/BreadyX/bxu'''
     print(version)
@@ -222,7 +222,7 @@ def compile_cleanfile_patterns(cleanfile):
         }'''
     raw_patterns = check_output(['awk', awk_script, cleanfile])
     raw_patterns = raw_patterns.decode(stdout.encoding)
-    return compile_cli_patterns(raw_patterns.splitlines)
+    return compile_cli_patterns(raw_patterns.splitlines())
 
 
 def clean_files(walkinfo, pattern, options):
