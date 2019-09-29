@@ -2,7 +2,7 @@
 
 # Changes grub default to desired kernel and updates grub.cfg
 
-VERSION='8.2019.1'
+VERSION='0.1'
 HELP_DIALOG="Usage: change-boot OPTION | KERNEL_TYPE
 Change the defualt grub boot entry to match the specified kernel and update the
 grub config file. 

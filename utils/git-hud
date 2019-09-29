@@ -3,7 +3,7 @@
 # Print formatted information about the git repository, if it exists, in the
 # current directory.
 
-VERSION="0.2"
+VERSION="1.0.0"
 dialog() {
     # Print help or version dialog depending on argument. If 'help' print the help #
     # one, if 'version' print the version one.                                     #
