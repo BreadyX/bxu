@@ -3,7 +3,17 @@
 # Print formatted information about the git repository, if it exists, in the
 # current directory.
 
-VERSION="1.0.0"
+VERSION="1.1.0"
+# Glyph init
+BRANCH_GLYPH='\|'
+AHEAD_GLYPH='^'
+BEHIND_GLYPH='v'
+if [ -n "$GIT_HUD_GLYPH" ]; then
+    BRANCH_GLYPH=''
+    AHEAD_GLYPH=''
+    BEHIND_GLYPH=''
+fi
+
 dialog() {
     # Print help or version dialog depending on argument. If 'help' print the help #
     # one, if 'version' print the version one.                                     #
@@ -30,15 +40,6 @@ dialog() {
 
 prompt() {
     # Print the prompt #
-    # Glyph init
-    BRANCH_GLYPH='\|'
-    AHEAD_GLYPH='^'
-    BEHIND_GLYPH='v'
-    if [ -n "$GIT_HUD_GLYPH" ]; then
-        BRANCH_GLYPH=''
-        AHEAD_GLYPH=''
-        BEHIND_GLYPH=''
-    fi
     REPOINFO="$(git status --porcelain --branch)"
     # Get branch info
     FIRSTLINE="$(echo "$REPOINFO" | head -n 1)"
@@ -48,7 +49,7 @@ prompt() {
     else
         BRANCH="$(echo "$BRANCH" | sed 's/\.\.\./\t/g' | cut -f1)"
         AHEAD="$(echo "$FIRSTLINE" | awk '{print substr($4, 1, 1)}')"
-        BEHIND="$(echo "$FIRSTLINE" | awk '{print substr($6, 1, 1)}')"
+        BEHIND="$(echo "$FIRSTLINE" | awk '{print substr($6, 1, 1)}')" 
     fi
     # Get latest commit
     if [ "$(cut -f1 -d' ' "$1/.git/HEAD")" = 'ref:' ]; then
@@ -63,23 +64,19 @@ prompt() {
     # Get stash
     [ -f "$1/.git/refs/stash" ] && STASH="$"
     # Print prompt
-    printf "%s; [%s] [%s]" "$BRANCH_GLYPH $BRANCH ($LATESTCOMMIT)" \
-        "$AHEAD_GLYPH $AHEAD $BEHIND_GLYPH $BEHIND" "$UNSTAGE$UNTRACK$UNMERGED$STASH"
+    MAIN="$BRANCH_GLYPH $BRANCH ($LATESTCOMMIT)"
+    MODS="($UNSTAGE$UNTRACK$UNMERGED$STASH)"
+    AHEAD_BEHIND="$AHEAD_GLYPH $AHEAD$BEHIND_GLYPH $BEHIND"
+    printf "[%s; %s; %s]" "$MAIN" "$AHEAD_BEHIND" "$MODS"
 }
 
-# Eval arguments
+# Eval arguments #
 case $1 in
     "--help")
         dialog 'help' ;;
     "--version")
         dialog 'version' ;;
-    "") ;;
-    *)
-        RED=$(tput setaf 1)
-        RST=$(tput sgr0)
-        printf "${RST}E: ${RED}Invalid argument %s, please check help dialog for info.${RST}" "$1" >&2
-        exit 1
-        ;;
+    *) ;;
 esac
 
 GITDIR="$(git rev-parse --show-toplevel 2>/dev/null)"
