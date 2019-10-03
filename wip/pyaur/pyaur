@@ -6,36 +6,38 @@
 import getopt
 import sys
 # import os
+import textwrap
 
 NAME = 'aur'
-VERSION = '0.1'
+VERSION = '0.0.1'
 SYNTAX = f'Usage: {NAME} [option]... [packages]...'
 OVERVIEW = ('Simple AUR helper that can install, search and get info on '
             'packages from the AUR. Every download is kept into the ".aur" '
             "folder inside the user's home directory.")
-OPTIONS = {'install'    : ('-S', '--sync', 'S',
+OPTIONS = {'install':     ('-S', '--sync', 'S',
                            "Install a package from the AUR"),
-           'build'      : ('-B', '--build', 'B',
+           'build':       ('-B', '--build', 'B',
                            "Download and build a package from the AUR"),
-           'get'        : ('-C', '--clone', 'C',
+           'get':         ('-C', '--clone', 'C',
                            "Download the port of a package from the AUR"),
-           'upgrade'    : ('-U', '--upgrade', 'U',
+           'upgrade':     ('-U', '--upgrade', 'U',
                            "Upgrade all installed AUR packages"),
-           'info'       : ('-Q', '--info', 'Q',
+           'info':        ('-Q', '--info', 'Q',
                            "Get information about a package from the AUR"),
-           'search'     : ('-s', '--search', 's',
+           'search':      ('-s', '--search', 's',
                            "Search the AUR for a package"),
-           'to-pacman'  : ('-', '--to-pacman=', '',
-                           "Pass <options> to pacman -U "
+           'to-pacman':   (' ', '--to-pacman=', '',
+                           "Pass <options> to pacman -U " +
                            "(to be used only when installing)"),
-           'to-makepkg' : ('-', '--to-makepkg=', '',
-                           "Pass <options> to makepkg "
+           'to-makepkg':  (' ', '--to-makepkg=', '',
+                           "Pass <options> to makepkg " +
                            "(to be used only when building or installing)"),
-           'quiet'      : ('-q', '--quiet', '', "Print less output"),
-           'verbose'    : ('-v', '--verbose', '', "Print more output"),
-           'help'       : ('-h', '--help', 'H', "Print this dialog"),
-           'version'    : ('-V', '--version', 'V',
-                           "Print a dialog containing info about version")}
+           'quiet':       ('-q', '--quiet', '', "Print less output"),
+           'verbose':     ('-v', '--verbose', '', "Print more output"),
+           'help':        ('-h', '--help', 'H', "Print this dialog"),
+           'version':     ('-V', '--version', 'V',
+                           "Print a dialog containing info about version")
+           }
 
 # Access OPTIONS dict without magic numers
 SHORT_OPT = 0
@@ -46,24 +48,55 @@ ACTION = 2
 
 def main():
     """Main function"""
-    print(make_dialog('H'))
+    options, arguments = eval_argv(sys.argv[1:])
+    action, flags = eval_options(options)
+    print(action, flags, arguments)  # Debug
+    print(make_dialog('H'))  # Debug
 
 
 def make_dialog(typ):
     """Construct help and version dialogs"""
     dialog = ''
     if typ == OPTIONS['help'][ACTION]:
-        # add syntax
-        dialog += SYNTAX + '\n\t' + OVERVIEW
-        # add description
-        # add options
+        dialog += SYNTAX + '\n' * 2  # add syntax
+        dialog += textwrap.fill(OVERVIEW, 80) + '\n' * 2  # add overview
+        for short, long, _, description in OPTIONS.values():  # add options
+            dialog += f'\t{short:2}, {long}\t{description}\n'
     elif typ == OPTIONS['version'][ACTION]:
         dialog = (f'{NAME} - BreadyX\'s utils. Version {VERSION}.'
-                  '\tWritten bt BreadyX.\n\tContacts:\n'
-                  '\thttps://github.com/BreadyX/bxu')
+                  'Written bt BreadyX.\n\tContacts:\n'
+                  'https://github.com/BreadyX/bxu')
     else:
         raise RuntimeError(f'Invalid type {typ}')
     return dialog
+
+
+def eval_argv(argv):
+    """Parse argv and return options and arguments"""
+    short = ''.join([s[SHORT_OPT][1:] for s in OPTIONS.values()])
+    long = [l[LONG_OPT][2:] for l in OPTIONS.values()]
+    try:
+        return getopt.getopt(argv, short, long)
+    except getopt.GetoptError as err:
+        raise RuntimeError(str(err))
+
+
+def eval_options(options):
+    """Evaluate passed options"""
+    action = OPTIONS['help'][ACTION]  # Default action
+    flags = {'quiet': False, 'verbose': False, 'to-pacman': '',
+             'to-makepkg': ''}
+    for option, value in options:
+        for short, long, opt_action, _ in OPTIONS.values():
+            if option in (short, long, long[0:-1]):  # option matches current
+                if opt_action != '':
+                    action = opt_action
+                else:
+                    if long[-1] == '=':
+                        flags[long[2:-1]] = value
+                    else:
+                        flags[long[2:]] = value
+    return action, flags
 
 
 if __name__ == '__main__':
