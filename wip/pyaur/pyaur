@@ -1,144 +1,74 @@
 #! /usr/bin/env python3
 """AUR helper"""
-import urllib.request
-import json
-import subprocess
+# import urllib.request
+# import json
+# import subprocess
 import getopt
 import sys
-import os
-
-# --sync        -S
-# --info        -i
-# --search      -s
-# --buildonly
-# --cloneonly
-# --to-pacman=
-# --to-makepkg=
-# --quiet       -q
-# --help        -h
-# --version     -v
+# import os
 
 NAME = 'aur'
 VERSION = '0.1'
+SYNTAX = f'Usage: {NAME} [option]... [packages]...'
+OVERVIEW = ('Simple AUR helper that can install, search and get info on '
+            'packages from the AUR. Every download is kept into the ".aur" '
+            "folder inside the user's home directory.")
+OPTIONS = {'install'    : ('-S', '--sync', 'S',
+                           "Install a package from the AUR"),
+           'build'      : ('-B', '--build', 'B',
+                           "Download and build a package from the AUR"),
+           'get'        : ('-C', '--clone', 'C',
+                           "Download the port of a package from the AUR"),
+           'upgrade'    : ('-U', '--upgrade', 'U',
+                           "Upgrade all installed AUR packages"),
+           'info'       : ('-Q', '--info', 'Q',
+                           "Get information about a package from the AUR"),
+           'search'     : ('-s', '--search', 's',
+                           "Search the AUR for a package"),
+           'to-pacman'  : ('-', '--to-pacman=', '',
+                           "Pass <options> to pacman -U "
+                           "(to be used only when installing)"),
+           'to-makepkg' : ('-', '--to-makepkg=', '',
+                           "Pass <options> to makepkg "
+                           "(to be used only when building or installing)"),
+           'quiet'      : ('-q', '--quiet', '', "Print less output"),
+           'verbose'    : ('-v', '--verbose', '', "Print more output"),
+           'help'       : ('-h', '--help', 'H', "Print this dialog"),
+           'version'    : ('-V', '--version', 'V',
+                           "Print a dialog containing info about version")}
 
-LONG_OPTIONS = ['sync', 'info', 'search', 'buildonly', 'cloneonly',
-                'to-pacman=', 'to-makepkg=', 'quiet', 'help', 'version']
-SHORT_OPTIONS = 'Sisqhv'
-OPTIONS = {'sync': ('--' + LONG_OPTIONS[0], '-' + SHORT_OPTIONS[0]),
-           'info': ('--' + LONG_OPTIONS[1], '-' + SHORT_OPTIONS[1]),
-           'search': ('--' + LONG_OPTIONS[2], '-' + SHORT_OPTIONS[2]),
-           'buildonly': ('--' + LONG_OPTIONS[3]),
-           'cloneonly': ('--' + LONG_OPTIONS[4]),
-           'to-pacman': ('--' + LONG_OPTIONS[5][0:-1]),
-           'to-makepkg': ('--' + LONG_OPTIONS[6][0:-1]),
-           'quiet': ('--' + LONG_OPTIONS[7], '-' + SHORT_OPTIONS[3]),
-           'help': ('--' + LONG_OPTIONS[8], '-' + SHORT_OPTIONS[4]),
-           'version': ('--' + LONG_OPTIONS[9], '-' + SHORT_OPTIONS[5])}
-OPT_ACTIONS = {'sync': 'S',
-               'info': 'i',
-               'search': 's',
-               'buildonly': 'b',
-               'cloneonly': 'c',
-               'help': 'h',
-               'version': 'v'}
-OPT_DESCS = {'sync': "Download, build and install packages from the AUR",
-             'info': "Get informations about packages",
-             'search': "Search the AUR with the given keywords",
-             'buildonly': "Download and build the package but do not install it",
-             'cloneonly': "Only clone the repository, do not build the package",
-             'to-pacman': "Options to pass to pacman on package install",
-             'to-makepkg': "Options to pass to makepkg on package build",
-             'quiet': "Do not print as much text",
-             'help': "Print this dialog",
-             'version': "Print information about the version of the program" }
-
-HELP_DIALOG = (f'Usage: {NAME} [option]... [packages]...\n'
-    '\tSimple AUR helper that can install, search and get info on packages\n'
-    '\tfrom the AUR. Every download is kept into the ".aur" folder inside the\n'
-    "\tuser's home directory.\n\n"
-    f'\t{OPTIONS["sync"][1]}, {OPTIONS["sync"][0]}\t{OPT_DESCS["sync"]}\n'
-    f'\t{OPTIONS["info"][1]}, {OPTIONS["info"][0]}\t{OPT_DESCS["info"]}\n'
-    f'\t{OPTIONS["search"][1]}, {OPTIONS["search"][0]}\t{OPT_DESCS["search"]}\n'
-    f'\t    {OPTIONS["buildonly"]}\t{OPT_DESCS["buildonly"]}\n'
-    f'\t    {OPTIONS["cloneonly"]}\t{OPT_DESCS["cloneonly"]}\n'
-    f'\t    {OPTIONS["to-pacman"]}=<options>\t{OPT_DESCS["to-pacman"]}\n'
-    f'\t    {OPTIONS["to-makepkg"]}=<options>\t{OPT_DESCS["to-makepkg"]}\n'
-    f'\t{OPTIONS["quiet"][1]}, {OPTIONS["quiet"][0]}\t{OPT_DESCS["quiet"]}\n'
-    f'\t{OPTIONS["help"][1]}, {OPTIONS["help"][0]}\t{OPT_DESCS["help"]}\n'
-    f'\t{OPTIONS["version"][1]}, {OPTIONS["version"][0]}\t{OPT_DESCS["version"]}\n')
-VERSION_DIALOG = (f'{NAME} (BreadyX\'s utils) version v{VERSION}\n'
-    # Legal stuff
-    'Written by BreadyX. Contacts (for bug reports and other):\n'
-    '\tGitHub repo (BXU):  https://github.com/BreadyX/bxu')
+# Access OPTIONS dict without magic numers
+SHORT_OPT = 0
+LONG_OPT = 1
+DESC_OPT = 3
+ACTION = 2
 
 
 def main():
     """Main function"""
-    # Parse cmd
-    argv, packs = parse_cmd()
-    action, flags, pacman_args, makepkg_args = eval_argv(argv)
-    if action == OPT_ACTIONS['sync']:
-        print('Cloning', packs)
-        print('Building', packs)
-        print('Installing', packs)
-    elif action == OPT_ACTIONS['info']:
-        print('Getting info on', packs)
-    elif action == OPT_ACTIONS['search']:
-        print('Searching', packs)
-    elif action == OPT_ACTIONS['buildonly']:
-        print('Cloning', packs)
-        print('Building', packs)
-    elif action == OPT_ACTIONS['cloneonly']:
-        print('Cloning', packs)
-    elif action == OPT_ACTIONS['help']:
-        print(HELP_DIALOG)
-    elif action == OPT_ACTIONS['version']:
-        print(VERSION_DIALOG)
-    exit()
+    print(make_dialog('H'))
 
 
-def err(message):
-    """Print error and exit with 1"""
-    red = "\033[31m"
-    rst = "\033[0m"
-    print(f'{red}Error: {message}{rst}.\n'
-          f'Use {NAME} {OPTIONS["help"][0]} for info on usage.')
-    exit(1)
-
-
-def parse_cmd():
-    """Parse command line with getopt"""
-    try:
-        argv, packs = getopt.getopt(sys.argv[1:], SHORT_OPTIONS, LONG_OPTIONS)
-    except getopt.GetoptError as error:
-        err(str(error))
-    return argv, packs
-
-def eval_argv(argv):
-    action, flags, pacman_args, makepkg_args = 'h', {}, '', ''
-    for arg, val in argv:
-        if arg in OPTIONS['sync']:
-            action = OPT_ACTIONS['sync']
-        elif arg in OPTIONS['search']:
-            action = OPT_ACTIONS['search']
-        elif arg in OPTIONS['info']:
-            action = OPT_ACTIONS['info']
-        elif arg in OPTIONS['buildonly']:
-            action = OPT_ACTIONS['buildonly']
-        elif arg in OPTIONS['cloneonly']:
-            action = OPT_ACTIONS['cloneonly']
-        elif arg in OPTIONS['help']:
-            action = OPT_ACTIONS['help']
-        elif arg in OPTIONS['version']:
-            action = OPT_ACTIONS['version']
-        elif arg in OPTIONS['quiet']:
-            flags['quiet'] = 1
-        elif arg in OPTIONS['to-pacman']:
-            pacman_args = val
-        elif arg in OPTIONS['to-makepkg']:
-            makepkg_args = val
-    return action, flags, pacman_args, makepkg_args
+def make_dialog(typ):
+    """Construct help and version dialogs"""
+    dialog = ''
+    if typ == OPTIONS['help'][ACTION]:
+        # add syntax
+        dialog += SYNTAX + '\n\t' + OVERVIEW
+        # add description
+        # add options
+    elif typ == OPTIONS['version'][ACTION]:
+        dialog = (f'{NAME} - BreadyX\'s utils. Version {VERSION}.'
+                  '\tWritten bt BreadyX.\n\tContacts:\n'
+                  '\thttps://github.com/BreadyX/bxu')
+    else:
+        raise RuntimeError(f'Invalid type {typ}')
+    return dialog
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except RuntimeError as err:
+        print(f'\033[31mError: {str(err)}.\033[0m\n'
+              f'Use {NAME} {OPTIONS["help"][LONG_OPT]} for info on usage.')
