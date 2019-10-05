@@ -3,18 +3,21 @@
 # import urllib.request
 # import json
 # import subprocess
-import getopt
 import sys
-# import os
+import os
+import getopt
+import pathlib
+import re
 import textwrap
 
+# Program information
 NAME = 'aur'
-VERSION = '0.0.1'
+VERSION = '0.0.2'
 SYNTAX = f'Usage: {NAME} [option]... [packages]...'
 OVERVIEW = ('Simple AUR helper that can install, search and get info on '
             'packages from the AUR. Every download is kept into the ".aur" '
             "folder inside the user's home directory.")
-OPTIONS = {'install':     ('-S', '--sync', 'S',
+OPTIONS = {'install':     ('-I', '--install', 'I',
                            "Install a package from the AUR"),
            'build':       ('-B', '--build', 'B',
                            "Download and build a package from the AUR"),
@@ -24,7 +27,7 @@ OPTIONS = {'install':     ('-S', '--sync', 'S',
                            "Upgrade all installed AUR packages"),
            'info':        ('-Q', '--info', 'Q',
                            "Get information about a package from the AUR"),
-           'search':      ('-s', '--search', 's',
+           'search':      ('-S', '--search', 'S',
                            "Search the AUR for a package"),
            'to-pacman':   (' ', '--to-pacman=', '',
                            "Pass <options> to pacman -U " +
@@ -38,6 +41,7 @@ OPTIONS = {'install':     ('-S', '--sync', 'S',
            'version':     ('-V', '--version', 'V',
                            "Print a dialog containing info about version")
            }
+ADDTIONAL_INFO = ('')
 
 # Access OPTIONS dict without magic numers
 SHORT_OPT = 0
@@ -45,13 +49,25 @@ LONG_OPT = 1
 DESC_OPT = 3
 ACTION = 2
 
+# Default config
+CONFIG_LOCATIONS = (pathlib.Path(f'/etc/{NAME}/config'),
+                    pathlib.Path(os.path.expanduser(f'~/.config/{NAME}/config')),
+                    pathlib.Path('./config')  # Debug
+                    )
+CONFIG_CLEAN_REGEX = re.compile('(#.*$)|(\s*$)')
+CONFIG_KEY_REGEX = re.compile('(\S*)\s*(\S*)')
+DEFAULT_CONFIG = {'db-path': '',
+                  'cache-path': ''}
+
 
 def main():
     """Main function"""
     options, arguments = eval_argv(sys.argv[1:])
     action, flags = eval_options(options)
-    print(action, flags, arguments)  # Debug
-    print(make_dialog('H'))  # Debug
+    # Read configs file
+    config = parse_configs()
+    print(config)
+    # Evaulate action
 
 
 def make_dialog(typ):
@@ -62,6 +78,7 @@ def make_dialog(typ):
         dialog += textwrap.fill(OVERVIEW, 80) + '\n' * 2  # add overview
         for short, long, _, description in OPTIONS.values():  # add options
             dialog += f'\t{short:2}, {long}\t{description}\n'
+        dialog += textwrap.fill(ADDITIONAL_INFO, 80)  # add additional info
     elif typ == OPTIONS['version'][ACTION]:
         dialog = (f'{NAME} - BreadyX\'s utils. Version {VERSION}.'
                   'Written bt BreadyX.\n\tContacts:\n'
@@ -98,6 +115,36 @@ def eval_options(options):
                         flags[long[2:]] = value
     return action, flags
 
+
+def parse_configs():
+    """
+    Parse configuration files if found in CONFIG_LOCATIONS. The order in 
+    which the files are parse matters
+    """
+    config = DEFAULT_CONFIG.copy()
+    for config_file in CONFIG_LOCATIONS:
+        if os.path.isfile(config_file):
+            keys = None
+            with open(config_file) as file:
+                keys = [parse_config_line(line) for line in file]
+            for key in keys:
+                if key is not None:
+                    if key[0] in config:
+                        config[key[0]] = key[1]
+                    else:
+                        raise RuntimeError(f'Key {key} in config file '
+                                            f'{config_file} is not valid')
+    return config
+
+
+def parse_config_line(line):
+    # strip comments and trailing whitespaces
+    clean_line = CONFIG_CLEAN_REGEX.sub('', line)
+    if clean_line == '':  # empty line
+        return None
+    # Capturing groups in CONFIG_KEY_REGEX are 2 so can expand
+    # safely
+    return CONFIG_KEY_REGEX.search(clean_line).groups()
 
 if __name__ == '__main__':
     try:
