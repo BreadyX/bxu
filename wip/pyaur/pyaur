@@ -41,7 +41,12 @@ OPTIONS = {'install':     ('-I', '--install', 'I',
            'version':     ('-V', '--version', 'V',
                            "Print a dialog containing info about version")
            }
-ADDTIONAL_INFO = ('')
+ADDITIONAL_INFO = (('When more than one action is speciefied (e.g. -I or -B) '
+                    'the last one is the one that is chosen'),
+                   ('If the database path does not exist, all packages that '
+                    'pacman flags as "foreign" will be seen treated as AUR '
+                    'packages')
+                   )
 
 # Access OPTIONS dict without magic numers
 SHORT_OPT = 0
@@ -65,9 +70,26 @@ def main():
     options, arguments = eval_argv(sys.argv[1:])
     action, flags = eval_options(options)
     # Read configs file
-    config = parse_configs()
-    print(config)
+    config = read_configs()
     # Evaulate action
+    if action == OPTIONS['install'][ACTION]:
+        pass
+    elif action == OPTIONS['build'][ACTION]:
+        pass
+    elif action == OPTIONS['get'][ACTION]:
+        pass
+    elif action == OPTIONS['upgrade'][ACTION]:
+        pass
+    elif action == OPTIONS['info'][ACTION]:
+        pass
+    elif action == OPTIONS['search'][ACTION]:
+        pass
+    elif action == OPTIONS['help'][ACTION]:
+        print(make_dialog(OPTIONS['help'][ACTION]))
+        return
+    elif action == OPTIONS['version'][ACTION]:
+        print(make_dialog(OPTIONS['version'][ACTION]))
+        return
 
 
 def make_dialog(typ):
@@ -78,11 +100,13 @@ def make_dialog(typ):
         dialog += textwrap.fill(OVERVIEW, 80) + '\n' * 2  # add overview
         for short, long, _, description in OPTIONS.values():  # add options
             dialog += f'\t{short:2}, {long}\t{description}\n'
-        dialog += textwrap.fill(ADDITIONAL_INFO, 80)  # add additional info
+        for info in ADDITIONAL_INFO:
+            dialog += '\n'
+            dialog += textwrap.fill(info, 80) + '\n'  # add additional info
     elif typ == OPTIONS['version'][ACTION]:
-        dialog = (f'{NAME} - BreadyX\'s utils. Version {VERSION}.'
-                  'Written bt BreadyX.\n\tContacts:\n'
-                  'https://github.com/BreadyX/bxu')
+        dialog = (f'{NAME} - BreadyX\'s utils. Version {VERSION}. '
+                  'Written by BreadyX.\nContacts:\n\tGithub repo: '
+                  'https://github.com/BreadyX/bxu\n')
     else:
         raise RuntimeError(f'Invalid type {typ}')
     return dialog
@@ -94,8 +118,8 @@ def eval_argv(argv):
     long = [l[LONG_OPT][2:] for l in OPTIONS.values()]
     try:
         return getopt.getopt(argv, short, long)
-    except getopt.GetoptError as err:
-        raise RuntimeError(str(err))
+    except getopt.GetoptError as error:
+        raise RuntimeError(str(error))
 
 
 def eval_options(options):
@@ -116,7 +140,7 @@ def eval_options(options):
     return action, flags
 
 
-def parse_configs():
+def read_configs():
     """
     Parse configuration files if found in CONFIG_LOCATIONS. The order in
     which the files are parse matters
@@ -138,6 +162,7 @@ def parse_configs():
 
 
 def parse_config_line(line):
+    """Parse one 'line' using using CONFIG_* regexes"""
     # strip comments and trailing whitespaces
     clean_line = CONFIG_CLEAN_REGEX.sub('', line)
     if clean_line == '':  # empty line
@@ -145,6 +170,7 @@ def parse_config_line(line):
     # Capturing groups in CONFIG_KEY_REGEX are 2 so can expand
     # safely
     return CONFIG_KEY_REGEX.search(clean_line).groups()
+
 
 if __name__ == '__main__':
     try:
