@@ -1,2 +1,3 @@
 .directory
 [Dd]eprecated/
+.idea/ # pycharm stuff
