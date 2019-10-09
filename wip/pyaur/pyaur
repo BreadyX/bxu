@@ -54,7 +54,7 @@ CONFIG_LOCATIONS = (pathlib.Path(f'/etc/{NAME}/config'),
                     pathlib.Path(os.path.expanduser(f'~/.config/{NAME}/config')),
                     pathlib.Path('./config')  # Debug
                     )
-CONFIG_CLEAN_REGEX = re.compile('(#.*$)|(\s*$)')
+CONFIG_CLEAN_REGEX = re.compile('(#.*$)|(\s*$)|(^\s*)')
 CONFIG_KEY_REGEX = re.compile('(\S*)\s*(\S*)')
 DEFAULT_CONFIG = {'db-path': '',
                   'cache-path': ''}
@@ -118,7 +118,7 @@ def eval_options(options):
 
 def parse_configs():
     """
-    Parse configuration files if found in CONFIG_LOCATIONS. The order in 
+    Parse configuration files if found in CONFIG_LOCATIONS. The order in
     which the files are parse matters
     """
     config = DEFAULT_CONFIG.copy()
@@ -126,14 +126,14 @@ def parse_configs():
         if os.path.isfile(config_file):
             keys = None
             with open(config_file) as file:
-                keys = [parse_config_line(line) for line in file]
+                keys = [parse_config_line(line) for line in file if line]
             for key in keys:
                 if key is not None:
                     if key[0] in config:
                         config[key[0]] = key[1]
                     else:
                         raise RuntimeError(f'Key {key} in config file '
-                                            f'{config_file} is not valid')
+                                           f'{config_file} is not valid')
     return config
 
 
