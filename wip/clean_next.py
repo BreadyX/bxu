@@ -57,18 +57,76 @@ CLEANFILE_LINE_CLEAN_REGEX = re.compile('(#.*$)|(\s*$)|(^\s*)')
 CLEANFILE_LINE_SPLIT_REGEX = re.compile("( |\\\".*?\\\"|'.*?')") ### [ p for p in re.split("( |\\\".*?\\\"|'.*?')", a) if p.strip()]
 
 ### DEFAULTS
-DEFAULT_FLAGS = {'file':       '',
-                 'directory':  './',
-                 'ask':        False,
-                 'dry':        False,
-                 'rm-dir':     False,
-                 'recursive':  False,
-                 'verbose':    False}
+DEFAULT_OPTS = {'file':      '',
+                'directory':  './',
+                'ask':        False,
+                'dry':        False,
+                'rm-dir':     False,
+                'recursive':  False,
+                'verbose':    False}
 
 def main():
     """Main function"""
     cli_options, cli_patterns = eval_argv(sys.argv[1:])
+    options = eval_options(cli_options)
+    compiled_pattern = None
+    if not options:  # check for no options (help or version)
+        return
+    if options['directory'] != DEFAULT_OPTS['directory']:
+        if not os.path.isdir(options['directory']):
+            raise ValueError(f'{options["directory"]} is not a valid '
+                             'directory')
+    if cli_patterns:
+        compile_patterns(cli_patterns)
+    else:  # look for cleanfile
+        if options['file'] != DEFAULT_OPTS['file']
+            if not os.path.isfile(options['file']):
+                raise ValueError(f'cleanfile {options["file"]} is not a valid '
+                                 'file')
+        else:
+            options['file'] = find_cleanfile(options['directory'])
+        # cleanfile flags
+        # compile cleafile patterns
+    # if verbose: print init
+    # get dir info
+    # if recursive:
+    #       clean recursively
+    #       if rmdir:
+    #           clean recursively dirs
+    #       else:
+    # else
+    #       clean
+    #       if rmdir:
+    #           clean dirs
 
+
+def eval_argv(argv):
+    """Parse argv and return options and arguments"""
+    short = ''.join([s[SHORT][1:] for s in OPTIONS.values()])
+    long = [l[LONG][2:] for l in OPTIONS.values()]
+    try:
+        return getopt.getopt(argv, short, long)
+    except getopt.GetoptError as err:
+        raise RuntimeError(str(err))
+
+
+def eval_options(cli_options):
+    """Return options based on cli_options"""
+    options = DEFAULT_OPTS.copy()
+    for option, value in cli_options:
+        if option in (OPTIONS['help'][0], OPTIONS['help'][1]):
+            print(make_dialog('H'))
+            return None
+        elif option in (OPTIONS['version'][0], OPTIONS['version'][1]):
+            print(make_dialog('V'))
+            return None
+        for short, long, flag, _ in OPTIONS.values():
+            if option in (short[0:2], long[0:-1]):
+                if long[-1] == '=':
+                    options[long[2:-1]] = value
+                else:
+                    options[long[2:]] = True
+    return options
 
 def make_dialog(typ):
     """Construct help and version dialogs"""
@@ -86,26 +144,17 @@ def make_dialog(typ):
                   'Written bt BreadyX.\n\tContacts:\n'
                   'https://github.com/BreadyX/bxu')
     else:
-        raise RuntimeError(f'Invalid type {typ}')
+        raise ValueError(f'Invalid type {typ}')
     return dialog
 
-def eval_argv(argv):
-    """Parse argv and return options and arguments"""
-    short = ''.join([s[SHORT_OPT][1:] for s in OPTIONS.values()])
-    long = [l[LONG_OPT][2:] for l in OPTIONS.values()]
-    try:
-        return getopt.getopt(argv, short, long)
-    except getopt.GetoptError as err:
-        raise RuntimeError(str(err))
 
 if __name__ == '__main__':
     try:
         if os.geteuid() == 0:
             print('RUNNING WITH ROOT PRIVILEGES. BE CAREFUL!')
             input('Press any key to continue...')
-        # main()
-        print(make_dialog('H'))
-    except RuntimeError as error:
+        main()
+    except (RuntimeError, ValueError) as error:
         sgr_red = "\033[31m"
         sgr_rst = "\033[0m"
         if os.environ.get('CLEAN_DEBUG'):
