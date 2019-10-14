@@ -53,8 +53,9 @@ ADDITIONAL_INFO = (("A 'cleanfile' is a plain text file containing the "
 
 ### Regexes
 CLEANFILE_FLAGS_REGEX = re.compile(f'({"|".join(CLEANFILE_FLAGS)})=([0-1])')
-CLEANFILE_LINE_CLEAN_REGEX = re.compile('(#.*$)|(\s*$)|(^\s*)')
-CLEANFILE_LINE_SPLIT_REGEX = re.compile("( |\\\".*?\\\"|'.*?')") ### [ p for p in re.split("( |\\\".*?\\\"|'.*?')", a) if p.strip()]
+CLEANFILE_LINE_CLEAN_REGEX = re.compile(r'(#.*$)|(\s*$)|(^\s*)')
+### Usage: [ p for p in re.split("( |\\\".*?\\\"|'.*?')", a) if p.strip()]
+CLEANFILE_LINE_SPLIT_REGEX = re.compile(r"( |\\\".*?\\\"|'.*?')")
 
 ### DEFAULTS
 DEFAULT_OPTS = {'file':      '',
@@ -77,16 +78,16 @@ def main():
             raise ValueError(f'{options["directory"]} is not a valid '
                              'directory')
     if cli_patterns:
-        compile_patterns(cli_patterns)
+        compiled_pattern = compile_patterns(cli_patterns)
     else:  # look for cleanfile
-        if options['file'] != DEFAULT_OPTS['file']
+        if options['file'] != DEFAULT_OPTS['file']:
             if not os.path.isfile(options['file']):
                 raise ValueError(f'cleanfile {options["file"]} is not a valid '
                                  'file')
         else:
             options['file'] = find_cleanfile(options['directory'])
         # cleanfile flags
-        # compile cleafile patterns
+        compiled_pattern = compile_cleanfile_patterns(options['file'])
     # if verbose: print init
     # get dir info
     # if recursive:
@@ -117,10 +118,10 @@ def eval_options(cli_options):
         if option in (OPTIONS['help'][0], OPTIONS['help'][1]):
             print(make_dialog('H'))
             return None
-        elif option in (OPTIONS['version'][0], OPTIONS['version'][1]):
+        if option in (OPTIONS['version'][0], OPTIONS['version'][1]):
             print(make_dialog('V'))
             return None
-        for short, long, flag, _ in OPTIONS.values():
+        for short, long, _, _ in OPTIONS.values():
             if option in (short[0:2], long[0:-1]):
                 if long[-1] == '=':
                     options[long[2:-1]] = value
@@ -148,6 +149,18 @@ def make_dialog(typ):
     return dialog
 
 
+def compile_patterns(patterns):
+    raise NotImplementedError()
+
+
+def compile_cleanfile_patterns(cleanfile_path):
+    raise NotImplementedError()
+
+
+def find_cleanfile(directory):
+    raise NotImplementedError()
+
+
 if __name__ == '__main__':
     try:
         if os.geteuid() == 0:
@@ -155,10 +168,10 @@ if __name__ == '__main__':
             input('Press any key to continue...')
         main()
     except (RuntimeError, ValueError) as error:
-        sgr_red = "\033[31m"
-        sgr_rst = "\033[0m"
+        RED = "\033[31m"
+        RESET = "\033[0m"
         if os.environ.get('CLEAN_DEBUG'):
             raise error
-        print(f'{sgr_red}Error: {str(error)}{sgr_rst}. Use {NAME} '
+        print(f'{RED}Error: {str(error)}{RESET}. Use {NAME} '
               f'{OPTIONS["help"][LONG]} for more info.')
         exit(1)
