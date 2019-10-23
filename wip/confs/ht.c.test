@@ -1,0 +1,200 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <assert.h>
+#include <errno.h>
+
+#define TABLE_SIZE 10
+#define VALUE_SIZE 10
+#define KEY_SIZE   10
+
+/* STRUCTS AND TYPES */
+struct Node {
+    char value[VALUE_SIZE + 1];
+    char key[KEY_SIZE + 1];
+    struct Node* next;
+};
+struct HashTable {
+    struct Node* table[TABLE_SIZE];
+};
+typedef struct Node      Node_t;
+typedef struct HashTable HashTable_t;
+
+/* FUNCTIONS PROTOTYPES */
+unsigned long hash(unsigned char* str);
+HashTable_t* create_hash_table();
+int insert_item(HashTable_t* table, char* key, char* value);
+int modify_item(HashTable_t* table, char* key, char* new_value);
+char* get_item(HashTable_t* table, char* key);
+int remove_item(HashTable_t* table, char* key);
+void destroy_hash_table(HashTable_t* table);
+
+/* FUNCTION IMPLEMENTATIONS */
+int main(int argc, char** argv)
+{
+    HashTable_t* my_table = create_hash_table();
+    char value[VALUE_SIZE];
+
+    insert_item(my_table, "str1", "val");
+    strcpy(value, get_item(my_table, "str1"));
+    printf("%s\n", value);
+
+    insert_item(my_table, "str2", "valtina");
+    memset(value, '\0', sizeof(char) * (VALUE_SIZE));
+    strcpy(value, get_item(my_table, "str2"));
+    printf("%s\n", value);
+
+    remove_item(my_table, "str2");
+    if (get_item(my_table, "str2") == NULL)
+        printf("str2 removed successfully\n");
+
+    destroy_hash_table(my_table);
+
+    return 0;
+}
+
+unsigned long hash(unsigned char* str)
+{
+    /* Hash the `str` string into a unsigned long. The has will have a      *
+     * range of 0 - (TABLE_SIZE - 1)                                        */
+    unsigned long hash = 5381;
+    int c;
+    while ((c = *str++)) hash = ((hash << 5) + hash) + c;
+    return hash % TABLE_SIZE;
+}
+
+HashTable_t* create_hash_table()
+{
+    /* Create a new HashTable and return a pointer to it.                   */
+    return malloc((unsigned long) sizeof(HashTable_t));
+}
+
+int insert_item(HashTable_t* table, char* key, char* value)
+{
+    /* Insert a new item with key `key` and value `value` into the          *
+     * HashTable pointed at by `table`                                      */
+    unsigned long h;
+    Node_t* to_append,
+            *current;
+    // Sanity checks
+    assert(table != NULL);
+    assert(strlen(key) < KEY_SIZE || strlen(value) < VALUE_SIZE);
+    // Create new node
+    to_append = malloc(sizeof(Node_t));
+    if (to_append == NULL) {
+        fprintf(stderr, "Failed to allocate memory for new HasTable item\n");
+        return ENOMEM;
+    }
+    h = hash((unsigned char*) key);
+    strcpy(to_append->key, key);
+    strcpy(to_append->value, value);
+    to_append->next = NULL;
+    // Add to table
+    if (table->table[h] == NULL) {
+        table->table[h] = to_append;
+        return 0;
+    } else {
+        current = table->table[h];
+        while (true) {
+            if (strcmp(current->key, key) == 0) {
+                fprintf(stderr, "Key %s already exists\n", key);
+                return EINVAL;
+            }
+            if (current->next == NULL) {
+                current->next = to_append;
+                return 0;
+            } else
+                current = current->next;
+        }
+    }
+}
+
+int modify_item(HashTable_t* table, char* key, char* new_value)
+{
+    /* Modify item with key `key` in HashTable `table` by assigning to it   *
+     * the new value `new_value`.                                           */
+    char* old_value;
+    // sanity checks
+    assert(table != NULL);
+    assert(strlen(key) < KEY_SIZE || strlen(new_value) < VALUE_SIZE);
+    // Get old value
+    old_value = get_item(table, key);
+    if (old_value == NULL) {
+        fprintf(stderr, "Key %s doesn't exists and, therefore, cannot be modified",
+                key);
+        return EINVAL;
+    }
+    // Set new value
+    memset(old_value, '\0', sizeof(char) * (VALUE_SIZE + 1));
+    strcpy(old_value, new_value);
+    return 0;
+}
+
+char* get_item(HashTable_t* table, char* key)
+{
+    /*Returns a pointer to the contents of the element with key `key` in    *
+     * HashTable `table`.                                                   *
+     * If nothing is found, NULL is returned.                               */
+    unsigned long h;
+    Node_t* current;
+    // Sanity checks
+    assert(strlen(key) < KEY_SIZE);
+    assert(table != NULL);
+    // Get hash
+    h = hash((unsigned char*) key);
+    // Find value
+    current = table->table[h];
+    if (current == NULL)
+        return NULL;
+    while (true) {
+        if (current == NULL)
+            return NULL;
+        if (strcmp(current->key, key) == 0)
+            return current->value;
+        else
+            current = current->next;
+    }
+}
+
+int remove_item(HashTable_t* table, char* key)
+{
+    unsigned long h;
+    Node_t* current,
+            *previous = NULL;
+    // Sanity checks
+    assert(strlen(key) < KEY_SIZE);
+    assert(table != NULL);
+
+    h = hash((unsigned char*) key);
+    current = table->table[h];
+    if (current == NULL) {
+        fprintf(stderr, "Key %s doesn't exist and, therefore, cannot be removed",
+                key);
+        return EINVAL;
+    }
+    while (true) {
+        if (strcmp(current->key, key) == 0) {
+            if (previous == NULL)
+                table->table[h] = current->next;
+            else
+                previous->next = current->next;
+            free(current);
+            return 0;
+        } else if (current == NULL) {
+            fprintf(stderr, "Key %s doesn't exist and, therefore, cannot be removed",
+                    key);
+            return EINVAL;
+        } else {
+            previous = current;
+            current = current->next;
+        }
+    }
+}
+
+void destroy_hash_table(HashTable_t* table)
+{
+    /* Deallocates HashTable pointed at by `table`                          */
+    if (table != NULL)
+        free(table);
+}
