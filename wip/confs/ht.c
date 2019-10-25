@@ -55,7 +55,8 @@ unsigned long hash(unsigned char* str)
      * range of 0 - (TABLE_SIZE - 1)                                        */
     unsigned long hash = 5381;
     int c;
-    while ((c = *str++)) hash = ((hash << 5) + hash) + c;
+    while ((c = *str++)) 
+        hash = ((hash << 5) + hash) + c;
     return hash % TABLE_SIZE;
 }
 
@@ -210,7 +211,7 @@ void destroy_hash_table(HashTable_t* table)
     }
     for (int i = 0; i < TABLE_SIZE; i++) {
         current = table->table[i];
-        while(!current->next) {
+        while(current->next) {
             next = current->next;
             free(current);
             current = next;
