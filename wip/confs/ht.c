@@ -3,80 +3,11 @@
 #include <string.h>
 #include <stdbool.h>
 #include <errno.h>
-#include <time.h>
+#include "./ht.h"
 
-#define TABLE_SIZE 1000
-#define VALUE_SIZE 10
-#define KEY_SIZE   10
-
-#define ENOTFOUND  -1
-
-int coll = 0;
-#define pcoll() do {printf("Collision\n"); coll++; } while(0)
-
-#if (defined(HT_DEBUG) && HT_DEBUG != 0)
-    #define perr(...) fprintf(stderr, __VA_ARGS__)
-#else
-    #define perr(...) ;
-#endif
-
-/* STRUCTS AND TYPES */
-struct Node {
-    char value[VALUE_SIZE + 1];
-    char key[KEY_SIZE + 1];
-    struct Node* next;
-};
-struct HashTable {
-    struct Node* table[TABLE_SIZE];
-    struct Node* tails[TABLE_SIZE];
-};
-typedef struct Node      Node_t;
-typedef struct HashTable HashTable_t;
-
-/* FUNCTIONS PROTOTYPES */
-unsigned long hash(const unsigned char key[KEY_SIZE]);
-HashTable_t* create_hash_table();
-int insert_item(HashTable_t* table, char key[KEY_SIZE], char value[VALUE_SIZE]);
-int modify_item(HashTable_t* table, char key[KEY_SIZE], char new_value[VALUE_SIZE]);
-int get_item(HashTable_t* table, const char key[KEY_SIZE], char* value);
-int remove_item(HashTable_t* table, char key[KEY_SIZE]);
-void destroy_hash_table(HashTable_t* table);
-
-/* FUNCTION IMPLEMENTATIONS */
-void randomStrGen(char* result) {
-    static char* charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
-    int i;
-    memset(result, '\0', sizeof(char) * (KEY_SIZE + 1));
-
-    for (i = 0; i < KEY_SIZE; i++)
-        result[i] = charset[rand() % 64];
-
-    for (i = 0; i < KEY_SIZE + 1; i++)
-        printf("%4d ", result[i]);
-    /* result[i] = '\0'; */
-}
-
-int main(int argc, char** argv)
+unsigned long HT_hash(const unsigned char *str)
 {
-    HashTable_t* my_table = create_hash_table();
-    char key[KEY_SIZE];
-
-    srand(time(NULL));
-    for (int i = 0; i < TABLE_SIZE; i++) {
-        randomStrGen(key);
-        insert_item(my_table, key, "123");
-        printf("Added item %d\n", i);
-    }
-    printf("\nCollisions: %d\n", coll);
-
-    destroy_hash_table(my_table);
-
-    return 0;
-}
-
-unsigned long hash(const unsigned char* str)
-{
-    /* Hash the `str` string into a unsigned long. The has will have a
+    /* Hash `str` into a unsigned long. The hash will have a
      * range of 0 - (TABLE_SIZE - 1). */
     unsigned long hash = 5381;
     int c;
@@ -85,27 +16,59 @@ unsigned long hash(const unsigned char* str)
     return hash % TABLE_SIZE;
 }
 
-HashTable_t* create_hash_table()
+HashTable_t *HT_create()
 {
     /* Create a new HashTable and return a pointer to it. */
     return malloc((unsigned long) sizeof(HashTable_t));
 }
 
-int insert_item(HashTable_t* table, char* key, char* value)
+void HT_destroy(HashTable_t *table, bool free_strings)
 {
-    /* Insert a new item with key `key` and value `value` into the          *
-     * HashTable pointed at by `table`                                      */
+    /* Deallocates HashTable pointed at by `table` including items inside
+     * it. If `free_strings` is flag is true, then also free the strings in each
+     * item.
+     *
+     * Note 1: if `free_strings` is true and one of the strings pointed at by
+     *  one of elements in the HashTable is not allocated in heap the program
+     *  WILL crash (free() error).
+     */
+    Node_t *current, *next;
+    if (!table) {
+        perr("Trying to destroy NULL table!\n");
+        return;
+    }
+    for (int i = 0; i < TABLE_SIZE; i++) {
+        current = table->table[i];
+        while(current) {
+            next = current->next;
+            if (free_strings) {
+                free(current->key);
+                free(current->value);
+            }
+            free(current);
+            current = next;
+        }
+    }
+    free(table);
+}
+
+int HT_ins(HashTable_t *table, char *key, char *value)
+{
+    /* Insert a new item with key `key` and value `value` into the HashTable
+     * pointed at by `table`.
+     *
+     * Note 1: `key` and `value` must be null-terminated strings allocated in
+     *  heap. Deallocating them before removing them from the HashTable will
+     *  lead to undefined behaviour.
+     */
     unsigned long h;
-    Node_t* to_append,
-            *current;
-    // Sanity checks
+    Node_t *to_append;
     if (!table) {
         perr("Null table passed to function\n");
         return EINVAL;
     }
-    if (strlen(key) > KEY_SIZE || strlen(value) > VALUE_SIZE) {
-        /* fprintf(stderr, "Argument too big has been passed\n"); */
-        perr("Argument too big has been passed\n");
+    if (!key || !value) {
+        perr("Null key/value passed to function\n");
         return EINVAL;
     }
     // Create new node
@@ -114,138 +77,104 @@ int insert_item(HashTable_t* table, char* key, char* value)
         perr("Not enough memory for new element\n");
         return ENOMEM;
     }
-    h = hash((unsigned char*) key);
-    strcpy(to_append->key, key);
-    strcpy(to_append->value, value);
-    to_append->next = NULL;
-    // Add to table
-    if (!table->table[h]) {
-        table->table[h] = to_append;
-        table->tails[h] = to_append;
-    } else {
-        pcoll();
-        current = table->table[h];
-        if (get_item(table, key, NULL) == ENOTFOUND) {
-            table->tails[h]->next = to_append;
+    to_append->key = key;
+    to_append->value = value;
+    // Add item if not already present
+    if (HT_has(table, to_append->key) != 0) {
+        h = HT_hash((unsigned char*) to_append->key);
+        if (!table->table[h]) {
+            table->table[h] = to_append;
             table->tails[h] = to_append;
         } else {
-            perr("Key %s already exists", key);
+            table->tails[h]->next = to_append;
+            to_append->prev = table->tails[h];
+            table->tails[h] = to_append;
         }
+        return 0;
+    } else {
+        perr("Item with key %s already present\n", to_append->key);
+        free(to_append);
+        return EINVAL;
     }
-    return 0;
 }
 
-int modify_item(HashTable_t* table, char* key, char* new_value)
+int HT_del(HashTable_t *table, char *key, bool free_strings)
 {
-    /* Modify item with key `key` in HashTable `table` by assigning to it   *
-     * the new value `new_value`.                                           */
-    int exists;
-    char old_value[VALUE_SIZE];
-    // sanity checks
-    if (!table) {
-        perr("Null table passed to function\n");
-        return EINVAL;
-    }
-    if (strlen(key) > KEY_SIZE || strlen(new_value) > VALUE_SIZE) {
-        perr("Value too long has been passed\n");
-        return EINVAL;
-    }
-
-    exists = get_item(table, key, old_value);
-    if (exists == ENOTFOUND) {
-        perr("Key %s doesn't exists\n", key);
-        return EINVAL;
-    }
-    memset(old_value, '\0', sizeof(char) * (VALUE_SIZE + 1));
-    strcpy(old_value, new_value);
-    return 0;
-}
-
-int get_item(HashTable_t* table, const char* key, char* value)
-{
-    /* Sets `value` to a pointer to the value of the element with key `key` in
-     * table `table. If nothing is found or an error has occurred, `value` is
+    /* Delete item with key `key` from `table`. If `free_strings` is true, then
+     * the strings pointed at by the item will also be freed, otherwise they are
      * left untouched.
      *
-     * If `value` is a NULL pointer, the function does not modify it, acting
-     * like a has() function. */
+     * Note 1: passing `free_strings` during removal of an item which points to
+     *  strings not allocated in heap will cause an error (free() error).
+     */
+    Node_t *to_del;
     unsigned long h;
-    Node_t* current;
-    // Sanity checks
     if (!table) {
         perr("Null table passed to function\n");
         return EINVAL;
     }
-    if (strlen(key) > KEY_SIZE) {
-        perr("Value too long has been passed\n");
+    if (!key) {
+        perr("Null key passed to function\n");
         return EINVAL;
     }
-    // Find value
-    h = hash((unsigned char*) key);
+    to_del = HT_get_node(table, key);
+    if (!to_del) {
+        pdebug("Passed key not in HashTable\n");
+        return HT_ENOTFOUND;
+    }
+    if (free_strings) {
+        free(to_del->key);
+        free(to_del->value);
+    }
+    if (to_del->prev)
+        to_del->prev->next = to_del->next;
+    else
+        table->table[h] = to_del->next;
+    free(to_del);
+    return 0;
+}
+
+int HT_has(HashTable_t *table, const char *key)
+{
+    /* Check if key `key` is present in HashTable `table`. If present return 0,
+     * else return a negative number.
+     */
+    Node_t *found = HT_get_node(table, key);
+    if (!found)
+        return -1;
+    return 0;
+}
+
+Node_t *HT_get_node(HashTable_t *table, const char *key)
+{
+    /* Return a poitner to Node in the HashTable with key `key`.
+     * If no match is found, NULL is returned.
+     */
+    unsigned long h;
+    Node_t *current;
+    // Search
+    if (!key) {
+        perr("Null key passed to function");
+        return NULL;
+    }
+    h = HT_hash((unsigned char*) key);
     current = table->table[h];
     while (current) {
-        if (strcmp(current->key, key) == 0) {
-            if (value)
-                strcpy(value, current->value);
-            return 0;
-        }
+        /* if (strcmp(current->key, key) == 0) */
+        if (current->key == key)
+            return current;
         current = current->next;
     }
-    return ENOTFOUND;
+    return NULL;
 }
 
-int remove_item(HashTable_t* table, char* key)
+char *HT_get_value(HashTable_t *table, const char *key)
 {
-    unsigned long h;
-    Node_t *current,
-           *previous = NULL;
-    // Sanity checks
-    if (!table) {
-        perr("Null table passed to function\n");
-        return EINVAL;
-    }
-    if (strlen(key) > KEY_SIZE) {
-        perr("Argument too big has been passed\n");
-        return EINVAL;
-    }
-    h = hash((unsigned char*) key);
-    current = table->table[h];
-    while (current) {
-        if (strcmp(current->key, key) == 0) {
-            if (!previous)
-                table->table[h] = current->next;
-            else if (!current->next) {
-                table->tails[h] = previous;
-                previous->next = NULL;
-            } else
-                previous->next = current->next;
-            free(current);
-            return 0;
-        } else {
-            previous = current;
-            current = current->next;
-        }
-    }
-    perr("Key %s doesn't exist", key);
-    return EINVAL;
-}
-
-void destroy_hash_table(HashTable_t* table)
-{
-    /* Deallocates HashTable pointed at by `table` including items inside
-     * it */
-    Node_t *current, *next;
-    if (!table) {
-        perr("Trying to destroy NULL table!");
-        return;
-    }
-    for (int i = 0; i < TABLE_SIZE; i++) {
-        current = table->table[i];
-        while(current) {
-            next = current->next;
-            free(current);
-            current = next;
-        }
-    }
-    free(table);
+    /* Return a pointer to value of the item in the HashTable with key `key`.
+     * If no match is found, NULL is returned.
+     */
+    Node_t *found = HT_get_node(table, key);
+    if (!found)
+        return NULL;
+    return found->value;
 }
