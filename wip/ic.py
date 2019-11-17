@@ -279,9 +279,39 @@ def list_funcs(context):
         to_p = to_p + 'Body defined' if func[1] else to_p + 'Body not defined'
         print(to_p)
 
-def merge(headers, macros, functions):
+def merge(headers, macros, globs, functions):
     """Builds a C file with the specified components and returns its path"""
-    raise NotImplementedError()
+    compiled_headers = ''
+    compiled_macros = ''
+    compiled_globals = ''
+    compiled_prototypes = ''
+    compiled_functions = ''
+    full_file = ''
+    file_path = ''
+    # add headers
+    for element in headers:
+        compiled_headers += '#include ' + element + '\n'
+    # add macros
+    for element in macros:
+        compiled_macros += '#define ' + element + '\n'
+    # add globals
+    for element in globs:
+        compiled_globals += element + ';\n'
+    # add prots and funcs
+    for element in functions:
+        compiled_prototypes += element[0] + ';\n'
+        compiled_functions += element[0] + '{\n'
+        for line in element[1].splitlines():
+            compiled_functions += '\t' + line + '\n'
+        compiled_functions += '}\n'
+
+    full_file = C_SKEL.format(compiled_headers, compiled_macros, compiled_globals,
+                              compiled_prototypes, compiled_functions)
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as wtmp:
+        file_path = wtmp.name
+        wtmp.write(full_file)
+    # write file
+    return file_path
 
 def build(doc, delete=False):
     """Compiles specified C file and returns the executable path"""
@@ -293,7 +323,8 @@ def run(out):
 
 def execute(context):
     """Build and execute resulting file"""
-    doc = merge(context[HEADERS], context[MACROS], context[FUNCTIONS])
+    doc = merge(context[HEADERS], context[MACROS], context[GLOBALS],
+                context[FUNCTIONS])
     out = build(doc)
     run(out)
     os.remove(doc)
@@ -301,16 +332,21 @@ def execute(context):
 
 def check(context):
     """Check resulting program for errors"""
-    doc = merge(context[HEADERS], context[MACROS], context[FUNCTIONS])
+    doc = merge(context[HEADERS], context[MACROS], context[GLOBALS],
+                context[FUNCTIONS])
     build(doc, delete=True)
     os.remove(doc)
 
 def preview(context):
     """Show preview of merged file"""
-    doc = merge(context[HEADERS], context[MACROS], context[FUNCTIONS])
+    doc = merge(context[HEADERS], context[MACROS], context[GLOBALS],
+                context[FUNCTIONS])
     print("Document:\n" + 100*'-')
-    for line in doc:
-        print(line)
+    with open(doc) as file:
+        for line in file:
+            print(line, end='')
+    os.remove(doc)
+
     os.remove(doc)
 
 if __name__ == '__main__':
