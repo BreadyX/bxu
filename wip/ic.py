@@ -347,6 +347,14 @@ def preview(context):
             print(line, end='')
     os.remove(doc)
 
+def export(context):
+    """Export file to file with path equals to argument"""
+    doc = merge(context[HEADERS], context[MACROS], context[GLOBALS],
+                context[FUNCTIONS])
+    try:
+        shutil.copyfile(doc, context[USER_ARGUMENT])
+    except IOError as err:
+        print("Error during export:", str(err))
     os.remove(doc)
 
 if __name__ == '__main__':
