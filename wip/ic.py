@@ -2,8 +2,10 @@
 """interactive c"""
 import sys
 import os
+import subprocess
 import tempfile
-import shutil
+from shutil import copyfile
+import shlex
 
 WELCOME_STR = "Welcome! Type '{}' for help."
 GOODBY_STR = "Goodbye!"
@@ -93,6 +95,7 @@ def main(argv):
                 cmd_func(context)
             except TypeError:
                 print(CMD_ERR.format(context[USER_COMMAND], '?'))
+            # cmd_func(context)
     # Greet
     print(GOODBY_STR)
 
@@ -235,9 +238,9 @@ def mod_with_editor(original):
         tmp_name = wtmp.name
         wtmp.write(original)
     if os.environ["EDITOR"]:
-        os.system(f"{os.environ['EDITOR']} {tmp_name}")
+        subprocess.run([os.environ["EDITOR"], tmp_name], check=True)
     else:
-        os.system(f"vi {tmp_name}")
+        subprocess.run(['vi', tmp_name], check=True)
     with open(tmp_name, 'r') as rtmp:
         new = rtmp.read()
     os.remove(tmp_name)
@@ -343,8 +346,8 @@ def preview(context):
                 context[FUNCTIONS])
     print("Document:\n" + 100*'-')
     with open(doc) as file:
-        for line in file:
-            print(line, end='')
+        for i, line in enumerate(file):
+            print(f'{i}  {line}', end='')
     os.remove(doc)
 
 def export(context):
@@ -352,7 +355,7 @@ def export(context):
     doc = merge(context[HEADERS], context[MACROS], context[GLOBALS],
                 context[FUNCTIONS])
     try:
-        shutil.copyfile(doc, context[USER_ARGUMENT])
+        copyfile(doc, context[USER_ARGUMENT])
     except IOError as err:
         print("Error during export:", str(err))
     os.remove(doc)
