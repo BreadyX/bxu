@@ -302,7 +302,8 @@ def merge(headers, macros, globs, functions):
         compiled_globals += element + ';\n'
     # add prots and funcs
     for element in functions:
-        compiled_prototypes += element[0] + ';\n'
+        if element[0] != STD_F[0][0]:
+            compiled_prototypes += element[0] + ';\n'
         compiled_functions += element[0] + '{\n'
         for line in element[1].splitlines():
             compiled_functions += '\t' + line + '\n'
@@ -310,26 +311,39 @@ def merge(headers, macros, globs, functions):
 
     full_file = C_SKEL.format(compiled_headers, compiled_macros, compiled_globals,
                               compiled_prototypes, compiled_functions)
+    # write file
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as wtmp:
         file_path = wtmp.name
         wtmp.write(full_file)
-    # write file
     return file_path
 
 def build(doc, delete=False):
     """Compiles specified C file and returns the executable path"""
-    raise NotImplementedError()
+    compiled = ''
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmp:
+        compiled = tmp.name
+    subprocess.run(['gcc', '-Wall', '-x', 'c', doc, '-o', compiled], check=True)
+    if delete:
+        os.remove(compiled)
+        compiled = ''
+    return compiled
 
-def run(out):
+def run(out, *args):
     """Runs specified executable"""
-    raise NotImplementedError()
+    try:
+        subprocess.run((out,) + args, check=True)
+    except subprocess.CalledProcessError as error:
+        print(f'Program encountered a problem: {str(error)}')
 
 def execute(context):
-    """Build and execute resulting file"""
+    """Build and execute resulting file passing argument"""
     doc = merge(context[HEADERS], context[MACROS], context[GLOBALS],
                 context[FUNCTIONS])
-    out = build(doc)
-    run(out)
+    try:
+        out = build(doc)
+        run(out, *shlex.split(context[USER_ARGUMENT]))
+    except subprocess.CalledProcessError:
+        print("Error has occured during building or runtime of program")
     os.remove(doc)
     os.remove(out)
 
@@ -337,7 +351,10 @@ def check(context):
     """Check resulting program for errors"""
     doc = merge(context[HEADERS], context[MACROS], context[GLOBALS],
                 context[FUNCTIONS])
-    build(doc, delete=True)
+    try:
+        build(doc, delete=True)
+    except subprocess.CalledProcessError:
+        print("Error has occurred during building of program")
     os.remove(doc)
 
 def preview(context):
