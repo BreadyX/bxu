@@ -20,12 +20,10 @@ struct Node {
     char *key;
     struct Node *prev;
     struct Node *next;
-    // Pointer to the hash in the hash array
 };
 struct HashTable {
     struct Node *table[TABLE_SIZE];
     struct Node *tails[TABLE_SIZE];
-    // array of the current hashes
 };
 typedef struct Node      Node_t;
 typedef struct HashTable HashTable_t;

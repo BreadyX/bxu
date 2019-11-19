@@ -122,6 +122,7 @@ int HT_del(HashTable_t *table, char *key, bool free_strings)
         pdebug("Passed key not in HashTable\n");
         return HT_ENOTFOUND;
     }
+    h = HT_hash((unsigned char*) to_del->key);
     if (free_strings) {
         free(to_del->key);
         free(to_del->value);
@@ -160,7 +161,6 @@ Node_t *HT_get_node(HashTable_t *table, const char *key)
     h = HT_hash((unsigned char*) key);
     current = table->table[h];
     while (current) {
-        /* if (strcmp(current->key, key) == 0) */
         if (current->key == key)
             return current;
         current = current->next;
