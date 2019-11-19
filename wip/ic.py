@@ -288,12 +288,16 @@ def mod_with_editor(original):
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as wtmp:
         tmp_name = wtmp.name
         wtmp.write(original)
-    if os.environ["EDITOR"]:
-        subprocess.run([os.environ["EDITOR"], tmp_name], check=True)
-    else:
-        subprocess.run(['vi', tmp_name], check=True)
-    with open(tmp_name, 'r') as rtmp:
-        new = rtmp.read()
+    try:
+        if os.environ["EDITOR"]:
+            subprocess.run([os.environ["EDITOR"], tmp_name], check=True)
+        else:
+            subprocess.run(['vi', tmp_name], check=True)
+        with open(tmp_name, 'r') as rtmp:
+            new = rtmp.read()
+    except subprocess.CalledProcessError as error:
+        print(f'Error during call to editor: {str(error)}')
+        new = original
     os.remove(tmp_name)
     return new
 
@@ -373,7 +377,11 @@ def build(doc, delete=False):
     compiled = ''
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmp:
         compiled = tmp.name
-    subprocess.run(['gcc', '-Wall', '-x', 'c', doc, '-o', compiled], check=True)
+    try:
+        subprocess.run(['gcc', '-Wall', '-x', 'c', doc, '-o', compiled], check=True)
+    except subprocess.CalledProcessError as error:
+        print(f'Error in call to compiler: {str(error)}')
+        delete = True
     if delete:
         os.remove(compiled)
         compiled = ''
@@ -402,10 +410,7 @@ def check(context):
     """Check resulting program for errors"""
     doc = merge(context[HEADERS], context[MACROS], context[GLOBALS],
                 context[FUNCTIONS])
-    try:
-        build(doc, delete=True)
-    except subprocess.CalledProcessError:
-        print("Error has occurred during building of program")
+    build(doc, delete=True)
     os.remove(doc)
 
 def preview(context):
