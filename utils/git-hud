@@ -4,7 +4,7 @@
 # current directory.
 
 # Program info
-VERSION="1.2.0"
+VERSION="1.3.0"
 SYNTAX="Usage: git-hud [ OPTION ]"
 DESCRIPTION="Format a quick summary about the current git repository and print it to standard output.
 If environment variable GIT_HUD_GLYPH is set, the script will use fontawesome glyphs."
@@ -45,9 +45,9 @@ prompt() {
         BRANCH="HEAD" AHEAD="" BEHIND=""
     else
         BRANCH="$(echo "$BRANCH" | sed 's/\.\.\./\t/g' | cut -f1)"
-        AHEAD="$(echo "$FIRSTLINE" | awk '{print substr($4, 1, 1)}')"
+        AHEAD="$(echo "$FIRSTLINE" | awk '{print substr($4, 1, 4)}' | cut -f1 -d']')"
         [ "$AHEAD" = '' ] && AHEAD='0'
-        BEHIND="$(echo "$FIRSTLINE" | awk '{print substr($6, 1, 1)}')"
+        BEHIND="$(echo "$FIRSTLINE" | awk '{print substr($6, 1, 4)}' | cut -f1 -d']')"
         [ "$BEHIND" = '' ] && BEHIND='0'
     fi
     # Get latest commit
