@@ -1,15 +1,33 @@
 #! /usr/bin/env python3
 """interactive c"""
-import sys
+from sys import argv
 import os
+import getopt
 import subprocess
 import tempfile
 from shutil import copyfile
 import shlex
 
+VERSION = '1.0.0'
+
 WELCOME_STR = "Welcome! Type '{}' for help."
 GOODBY_STR = "Goodbye!"
 CMD_ERR = "Invalid command '{}', see {} for more info"
+
+SHORT_OPTS = 'hv'
+LONG_OPTS = ('help', 'version')
+
+HELP_MSG = '''Usage: {} [OPTION]
+Write a small C program using a quick and easy command prompt.
+
+Options:
+\t-h, --help      Display this message
+\t-v, --version   Display info on program version
+
+Command prompt:'''
+VERS_MSG = '''{} - BreadyX's Utils (BXU). Version {}
+Written by BreadyX, contacts (for bug reports and other):
+    GitHub repo (BXU):  https://github.com/BreadyX/bxu'''
 
 STD_H = ('<stdio.h>', '<stdlib.h>')
 STD_F = (["int main(int argc, char **argv)", 'return 0;'],)
@@ -30,7 +48,7 @@ PROMPT_MOD = '*> '
 
 C_SKEL = "{}\n{}\n{}\n{}\n{}\n"
 
-def main(argv):
+def main(args):
     """main"""
     context = {ALIVE: True,
                CMDS: {'?'   : help_dialog,
@@ -72,40 +90,73 @@ def main(argv):
                MACROS: [],
                GLOBALS: [],
                FUNCTIONS: [],}
-    # Greet
-    print(WELCOME_STR.format('?'))
     # INIT
     clear_list(context[HEADERS], STD_H)
     clear_list(context[FUNCTIONS], STD_F)
     # Parse argv
-    # ...
-    # Loop and prompt
-    while context[ALIVE]:
-        try:
-            context[USER_INPUT] = input(PROMPT_STD).strip()
-        except EOFError:
-            print('')  # Maintain good alignment
-            context[ALIVE] = False
-            context[USER_INPUT] = ''
-        if context[USER_INPUT]:
-            context[USER_COMMAND] = context[USER_INPUT].split(sep=' ')[0]
-            context[USER_ARGUMENT] = context[USER_INPUT][len(context[USER_COMMAND]):].strip()
-            cmd_func = context[CMDS].get(context[USER_COMMAND], None)
-            try:
-                cmd_func(context)
-            except TypeError:
-                print(CMD_ERR.format(context[USER_COMMAND], '?'))
-            # cmd_func(context)
-    # Greet
-    print(GOODBY_STR)
+    try:
+        opts, _ = getopt.getopt(args[1:], SHORT_OPTS, LONG_OPTS)
+        for opt, _ in opts:
+            if opt in ('-h', '--help'):
+                print_help(context, os.path.basename(args[0]))
+                exit_program(context)
+            elif opt in ('-v', '--version'):
+                print_version(os.path.basename(args[0]))
+                exit_program(context)
+            else:
+                print(f'Invalid option {opt}')
+                exit_program(context)
+    except getopt.GetoptError as err:
+        print(str(err))
+        exit_program(context)
+    if context[ALIVE]:
+        # Greet
+        print(WELCOME_STR.format('?'))
+        # Loop and prompt and exec
+        while context[ALIVE]:
+            prompt(context)
+            if context[USER_INPUT]:
+                context[USER_COMMAND] = context[USER_INPUT].split(sep=' ')[0]
+                context[USER_ARGUMENT] = context[USER_INPUT][len(context[USER_COMMAND]):].strip()
+                cmd_func = context[CMDS].get(context[USER_COMMAND], None)
+                try:
+                    cmd_func(context)
+                except TypeError:
+                    print(CMD_ERR.format(context[USER_COMMAND], '?'))
+        # Greet
+        print(GOODBY_STR)
 
-def help_dialog(context):
+def prompt(context):
+    """Draw prompt"""
+    try:
+        context[USER_INPUT] = input(PROMPT_STD).strip()
+    except EOFError:
+        print()  # Maintain good alignment
+        exit_program(context)
+        context[USER_INPUT] = ''
+
+def print_help(context, program_name):
+    """Print help message"""
+    print(HELP_MSG.format(program_name))
+    cmds = help_dialog(context, False)
+    for line in cmds.splitlines():
+        print("\t" + line)
+    print()  # Spacing
+
+def print_version(program_name):
+    """Print version info"""
+    print(VERS_MSG.format(program_name, VERSION))
+
+def help_dialog(context, print_lines=True):
     """Print information about commands"""
     doc = ''
-    print("Usage: command argument\nCommand\t\tDescription\n" + 100*'-')
+    out = "Usage: command argument\nCommands:\n"
     for cmd in context[CMDS]:
         doc = 'N.A.' if not context[CMDS][cmd].__doc__ else context[CMDS][cmd].__doc__
-        print(f'{cmd}\t\t{doc}')
+        out += f'\t{cmd}\t\t{doc}\n'
+    if print_lines:
+        print(out)
+    return out
 
 def exit_program(context):
     """Quits program"""
@@ -379,6 +430,6 @@ def export(context):
 
 if __name__ == '__main__':
     try:
-        main(sys.argv)
+        main(argv)
     except KeyboardInterrupt:
         pass
