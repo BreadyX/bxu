@@ -1,18 +1,13 @@
 #! /usr/bin/env python3
 """interactive c"""
 from sys import argv
-import os
-import getopt
-import subprocess
-import tempfile
 from shutil import copyfile
+import getopt, os, subprocess, tempfile
 import shlex
 
 VERSION = '1.0.0'
 
-WELCOME_STR = "Welcome! Type '{}' for help."
-GOODBY_STR = "Goodbye!"
-CMD_ERR = "Invalid command '{}', see {} for more info"
+CMD_ERR_STR = "Invalid command '{}', see {} for more info"
 
 SHORT_OPTS = 'hv'
 LONG_OPTS = ('help', 'version')
@@ -24,7 +19,8 @@ Options:
 \t-h, --help      Display this message
 \t-v, --version   Display info on program version
 
-Command prompt:'''
+Command prompt:
+\tFor help on commands, enter '?' in the command prompt.'''
 VERS_MSG = '''{} - BreadyX's Utils (BXU). Version {}
 Written by BreadyX, contacts (for bug reports and other):
     GitHub repo (BXU):  https://github.com/BreadyX/bxu'''
@@ -32,10 +28,14 @@ Written by BreadyX, contacts (for bug reports and other):
 STD_H = ('<stdio.h>', '<stdlib.h>')
 STD_F = (["int main(int argc, char **argv)", 'return 0;'],)
 
-ALIVE = 1
-CMDS = 2
-USER_INPUT = 3
-USER_COMMAND = 4
+CMD_OK = 0
+CMD_ERR = 1
+CMD_EXIT = -1
+
+# ALIVE = 1
+# CMDS = 2
+# USER_INPUT = 3
+# USER_COMMAND = 4
 USER_ARGUMENT = 5
 HEADERS = 6
 MACROS = 7
@@ -48,126 +48,23 @@ PROMPT_MOD = '*> '
 
 C_SKEL = "{}\n{}\n{}\n{}\n{}\n"
 
-def main(args):
-    """main"""
-    context = {ALIVE: True,
-               CMDS: {'?'   : help_dialog,
-                      'help': help_dialog,
-                      'exit': exit_program,
-                      'quit': exit_program,
+CMDS = {}  # Declared before main after all function declarations
 
-                      'addh': add_header,
-                      'rmh' : rm_header,
-                      'modh': mod_header,
-                      'clh' : clear_headers,
-                      'llh' : list_headers,
-
-                      'defm': add_macro,
-                      'rmm' : rm_macro,
-                      'modm': mod_macro,
-                      'clm' : clear_macros,
-                      'llm' : list_macros,
-
-                      'addg': add_global,
-                      'rmg' : rm_global,
-                      'modg': mod_global,
-                      'clg' : clear_globals,
-                      'llg' : list_globals,
-
-                      'deff': add_func,
-                      'rmf' : rm_func,
-                      'clf' : clear_funcs,
-                      'llf' : list_funcs,
-
-                      'prev': preview,
-                      'exp' : export,
-                      'chk' : check,
-                      'exec': execute,},
-               USER_INPUT: '',
-               USER_COMMAND: '',
-               USER_ARGUMENT: '',
-               HEADERS: [],
-               MACROS: [],
-               GLOBALS: [],
-               FUNCTIONS: [],}
-    # INIT
-    clear_list(context[HEADERS], STD_H)
-    clear_list(context[FUNCTIONS], STD_F)
-    # Parse argv
-    try:
-        opts, _ = getopt.getopt(args[1:], SHORT_OPTS, LONG_OPTS)
-        for opt, _ in opts:
-            if opt in ('-h', '--help'):
-                print_help(context, os.path.basename(args[0]))
-                exit_program(context)
-            elif opt in ('-v', '--version'):
-                print_version(os.path.basename(args[0]))
-                exit_program(context)
-            else:
-                print(f'Invalid option {opt}')
-                exit_program(context)
-    except getopt.GetoptError as err:
-        print(str(err))
-        exit_program(context)
-    if context[ALIVE]:
-        # Greet
-        print(WELCOME_STR.format('?'))
-        # Loop and prompt and exec
-        while context[ALIVE]:
-            prompt(context)
-            if context[USER_INPUT]:
-                context[USER_COMMAND] = context[USER_INPUT].split(sep=' ')[0]
-                context[USER_ARGUMENT] = context[USER_INPUT][len(context[USER_COMMAND]):].strip()
-                cmd_func = context[CMDS].get(context[USER_COMMAND], None)
-                try:
-                    cmd_func(context)
-                except TypeError:
-                    print(CMD_ERR.format(context[USER_COMMAND], '?'))
-        # Greet
-        print(GOODBY_STR)
-
-def prompt(context):
+### UTILITY
+def draw_prompt(prompt):
     """Draw prompt"""
     try:
-        context[USER_INPUT] = input(PROMPT_STD).strip()
+        return input(prompt).strip()
     except EOFError:
         print()  # Maintain good alignment
-        exit_program(context)
-        context[USER_INPUT] = ''
-
-def print_help(context, program_name):
-    """Print help message"""
-    print(HELP_MSG.format(program_name))
-    cmds = help_dialog(context, False)
-    for line in cmds.splitlines():
-        print("\t" + line)
-    print()  # Spacing
-
-def print_version(program_name):
-    """Print version info"""
-    print(VERS_MSG.format(program_name, VERSION))
-
-def help_dialog(context, print_lines=True):
-    """Print information about commands"""
-    doc = ''
-    out = "Usage: command argument\nCommands:\n"
-    for cmd in context[CMDS]:
-        doc = 'N.A.' if not context[CMDS][cmd].__doc__ else context[CMDS][cmd].__doc__
-        out += f'\t{cmd}\t\t{doc}\n'
-    if print_lines:
-        print(out)
-    return out
-
-def exit_program(context):
-    """Quits program"""
-    context[ALIVE] = False
+        return None
 
 def add_to(the_list, arg):
     """Add to index in context"""
     if arg not in the_list:
         the_list.append(arg)
     else:
-        print("Already present")
+        print("Item already present")
 
 def rm_form_with_prompt(the_list, item_is_list=False, item_index=0):
     """Remove user-chosen item from list"""
@@ -184,7 +81,7 @@ def mod_in_with_prompt(the_list):
     if pos == -1:
         print("Invalid selection")
         return
-    new = input(PROMPT_MOD)
+    new = draw_prompt(PROMPT_MOD)
     the_list[pos] = new
 
 def clear_list(the_list, standard=None):
@@ -198,18 +95,33 @@ def clear_list(the_list, standard=None):
 def choose_between(the_list, is_list=False, item_index=0):
     """Print a list and let the user choose. Return the index of the chosen item"""
     user_in = None
+    print("Choose:")
     for i, val in enumerate(the_list):
         if is_list:
-            print(f'{i} {val[item_index]}')
+            print(f'{i}. {val[item_index]}')
         else:
-            print(f'{i} {val}')
+            print(f'{i}. {val}')
     try:
-        user_in = int(input(PROMPT_ASK))
+        user_in = int(draw_prompt(PROMPT_ASK))
     except ValueError:
         return -1
     if (user_in < 0 or user_in >= len(the_list)):
         return -1
     return user_in
+
+### MISC
+def cmd_help(_):
+    """Print information about commands"""
+    doc = ''
+    out = "Usage: command argument\nCommands:\n"
+    for cmd in CMDS:
+        doc = 'N.A.' if not CMDS[cmd].__doc__ else CMDS[cmd].__doc__
+        out += f'\t{cmd}\t\t{doc}\n'
+    print(out)
+
+def cmd_exit(_):
+    """Quits program"""
+    raise SystemExit()
 
 ### HEADERS
 def add_header(context):
@@ -374,9 +286,7 @@ def merge(headers, macros, globs, functions):
 
 def build(doc, delete=False):
     """Compiles specified C file and returns the executable path"""
-    compiled = ''
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmp:
-        compiled = tmp.name
+    _, compiled = tempfile.mkstemp()
     try:
         subprocess.run(['gcc', '-Wall', '-x', 'c', doc, '-o', compiled], check=True)
     except subprocess.CalledProcessError as error:
@@ -387,22 +297,15 @@ def build(doc, delete=False):
         compiled = ''
     return compiled
 
-def run(out, *args):
-    """Runs specified executable"""
-    try:
-        subprocess.run((out,) + args, check=True)
-    except subprocess.CalledProcessError as error:
-        print(f'Program encountered a problem: {str(error)}')
-
 def execute(context):
     """Build and execute resulting file passing argument"""
     doc = merge(context[HEADERS], context[MACROS], context[GLOBALS],
                 context[FUNCTIONS])
     try:
         out = build(doc)
-        run(out, *shlex.split(context[USER_ARGUMENT]))
-    except subprocess.CalledProcessError:
-        print("Error has occured during building or runtime of program")
+        subprocess.run((out,) + shlex.split(context[USER_ARGUMENT]), check=True)
+    except subprocess.CalledProcessError as error:
+        print(f'Error has occurred: {str(error)}')
     os.remove(doc)
     os.remove(out)
 
@@ -432,6 +335,83 @@ def export(context):
     except IOError as err:
         print("Error during export:", str(err))
     os.remove(doc)
+
+### CMDS
+CMDS = {'?'   : cmd_help,
+        'exit': cmd_exit,
+
+        'addh': add_header,
+        'rmh' : rm_header,
+        'modh': mod_header,
+        'clh' : clear_headers,
+        'llh' : list_headers,
+
+        'defm': add_macro,
+        'rmm' : rm_macro,
+        'modm': mod_macro,
+        'clm' : clear_macros,
+        'llm' : list_macros,
+
+        'addg': add_global,
+        'rmg' : rm_global,
+        'modg': mod_global,
+        'clg' : clear_globals,
+        'llg' : list_globals,
+
+        'deff': add_func,
+        'rmf' : rm_func,
+        'clf' : clear_funcs,
+        'llf' : list_funcs,
+
+        'prev': preview,
+        'exp' : export,
+        'chk' : check,
+        'exec': execute,}
+
+### MAIN
+def main(args):
+    """main"""
+    context = {USER_ARGUMENT: '',
+               HEADERS: [],
+               MACROS: [],
+               GLOBALS: [],
+               FUNCTIONS: [],}
+    alive = True
+    user_input = ''
+    split_user_input = ''
+
+    # INIT
+    clear_list(context[HEADERS], STD_H)
+    clear_list(context[FUNCTIONS], STD_F)
+    # Parse argv
+    try:
+        opts, _ = getopt.getopt(args[1:], SHORT_OPTS, LONG_OPTS)
+        for opt, _ in opts:
+            if opt in ('-h', '--help'):
+                print(HELP_MSG.format(os.path.basename(args[0])))
+                return  # Program exit if --help
+            if opt in ('-v', '--version'):
+                print(VERS_MSG.format(os.path.basename(args[0]), VERSION))
+                return  # Program exit if --version
+            else:
+                print(f'Invalid option {opt}')
+    except getopt.GetoptError as err:
+        print(str(err))
+        return  # Program exit if generic GetoptError
+
+    # Loop, prompt, exec
+    while alive:
+        user_input = draw_prompt(PROMPT_STD)
+        if user_input:
+            split_user_input = shlex.split(user_input)
+            cmd_func = CMDS.get(split_user_input[0], None)
+            context[USER_ARGUMENT] = ' '.join(split_user_input[1:])
+            try:
+                cmd_func(context)
+            except TypeError:
+                print(CMD_ERR_STR.format(split_user_input[0], '?'))
+        elif user_input is None:
+            alive = False
 
 if __name__ == '__main__':
     try:
