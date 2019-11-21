@@ -21,7 +21,7 @@ struct Node {
     struct Node *prev;
     struct Node *next;
 };
-struct HashTable {
+struct HashTable { // TODO: Implement HT with a stack instead of linked list
     struct Node *table[TABLE_SIZE];
     struct Node *tails[TABLE_SIZE];
 };

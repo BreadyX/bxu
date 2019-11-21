@@ -1,8 +1,5 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <stdbool.h>
-// #include <unistd.h>
 #include <getopt.h>
 
 bool EDIT = false;
@@ -33,7 +30,7 @@ int main(int argc, char** argv)
     opterr = 0; // turnoff getopt error
     if (argc == 1)
         return 1;
-    while (arg_ev < argc) {
+    while (arg_ev < argc) { // TODO: Implementargument checking
         arg_ev++;
     }
 
