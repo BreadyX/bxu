@@ -67,7 +67,7 @@ def add_to(the_list, arg):
     if arg not in the_list:
         the_list.append(arg)
 
-def rm_form_with_prompt(the_list, item_is_list=False, item_index=0):
+def rm_from_with_prompt(the_list, item_is_list=False, item_index=0):
     """Remove user-chosen item from list"""
     pos = choose_between(the_list, item_is_list, item_index)
     if pos == -1:
@@ -151,14 +151,13 @@ def rm_header(context):
     choose_between()) from HEADERS"""
     chosen = 0
     if not context[USER_ARGUMENT]:
-        rm_form_with_prompt(context[HEADERS])
+        rm_from_with_prompt(context[HEADERS])
     else:
         try:
             chosen = int(context[USER_ARGUMENT])
             context[HEADERS].pop(chosen)
         except (TypeError, IndexError):
             print(CMD_INV_ARG.format(chosen))
-
 
 def mod_header(context):
     """Modify header of specified index (taken from USER_ARGUMENT or
@@ -186,31 +185,52 @@ def list_headers(context):
             out += ' * '
         else:
             out += '   '
-        out += f'#include {header:10}'
+        out += f'#include {header}'
         print(out)
 
 ### MACROS
 def add_macro(context):
-    """Define macro matching the argument (multiline not supported)"""
-    add_to(context[MACROS], context[USER_ARGUMENT])
+    """Add argument to list of defined macros"""
+    if context[USER_ARGUMENT]:
+        if context[USER_ARGUMENT] not in context[MACROS]:
+            context[MACROS].append(context[USER_ARGUMENT])
+    else:
+        print(CMD_NO_ARG)
 
 def rm_macro(context):
-    """Remove specified macro"""
-    rm_form_with_prompt(context[MACROS])
+    """Pop macro of specified index (taken from USER_ARGUMENT or
+    choose_between()) from MACROS"""
+    chosen = 0
+    if not context[USER_ARGUMENT]:
+        rm_from_with_prompt(context[MACROS])
+    else:
+        try:
+            chosen = int(context[USER_ARGUMENT])
+            context[MACROS].pop(chosen)
+        except (TypeError, IndexError):
+            print(CMD_INV_ARG.format(chosen))
 
 def mod_macro(context):
-    """Modify one of the defined macros"""
-    mod_in_with_prompt(context[MACROS])
+    """Modify macro of specified index (taken from USER_ARGUMENT or
+    choose_between()) from MACROS by replacing it with a new input"""
+    chosen = 0
+    if not context[USER_ARGUMENT]:
+        mod_in_with_prompt(context[MACROS])
+    else:
+        try:
+            chosen = int(context[USER_ARGUMENT])
+            context[MACROS][chosen] = get_user_input(PROMPT_MOD)
+        except (TypeError, IndexError):
+            print(CMD_INV_ARG.format(chosen))
 
 def clear_macros(context):
-    """Delete all user defined macros"""
+    """Reset MACROS"""
     clear_list(context, MACROS)
 
 def list_macros(context):
-    """List all added macros"""
-    print("Defined macros:")
-    for macro in context[MACROS]:
-        print(f'\t#define {macro}')
+    """Print contents of MACROS"""
+    for i, macro in enumerate(context[MACROS]):
+        print(f'{i}. #define {macro}')
 
 # GLOBALS
 def add_global(context):
@@ -219,7 +239,7 @@ def add_global(context):
 
 def rm_global(context):
     """Remove specified global"""
-    rm_form_with_prompt(context[GLOBALS])
+    rm_from_with_prompt(context[GLOBALS])
 
 def mod_global(context):
     """Modify one of the defined globals"""
@@ -277,7 +297,7 @@ def add_func(context):
 
 def rm_func(context):
     """Remove specified global"""
-    rm_form_with_prompt(context[FUNCTIONS], True, 0)
+    rm_from_with_prompt(context[FUNCTIONS], True, 0)
 
 def clear_funcs(context):
     """Reset all functions to standard"""
@@ -384,7 +404,8 @@ CMDS = {'?'   : (cmd_help, OPT_ARG,
                  "Print this dialog. If argument is given print help only for that"),
         'quit': (cmd_exit, NO_ARG, "Quit program"),
 
-        'addh': (add_header, ARG, "Add argument to the list of headers"),
+        'addh': (add_header, ARG,
+                 "Add argument to the list of headers (#include MUST NOT be included)"),
         'rmh' : (rm_header, OPT_ARG,
                  "Remove header with index argument. If no index is given,"
                  "a prompt will ask for one"),
@@ -395,11 +416,16 @@ CMDS = {'?'   : (cmd_help, OPT_ARG,
         'llh' : (list_headers, NO_ARG,
                  "List all added headers. Headers with '*' are standard"),
 
-        'defm': (add_macro, ARG, ""),
-        'rmm' : (rm_macro, OPT_ARG, ""),
-        'modm': (mod_macro, OPT_ARG, ""),
-        'clm' : (clear_macros, NO_ARG, ""),
-        'llm' : (list_macros, NO_ARG, ""),
+        'addm': (add_macro, ARG,
+                 "Add argument to the list of macros (#define MUST NOT be included)"),
+        'rmm' : (rm_macro, OPT_ARG,
+                 "Remove macro with index argument. If no index is given,"
+                 "a prompt will ask for one"),
+        'modm': (mod_macro, OPT_ARG,
+                 "Modify macro with index argument. If no index is given,"
+                 "a prompt will ask for one"),
+        'clm' : (clear_macros, NO_ARG, "Remove all user-added macros"),
+        'llm' : (list_macros, NO_ARG, "List all added macros"),
 
         'addg': (add_global, ARG, ""),
         'rmg' : (rm_global, OPT_ARG, ""),
@@ -407,7 +433,7 @@ CMDS = {'?'   : (cmd_help, OPT_ARG,
         'clg' : (clear_globals, NO_ARG, ""),
         'llg' : (list_globals, NO_ARG, ""),
 
-        'deff': (add_func, ARG, ""),
+        'def' : (add_func, ARG, ""),
         'rmf' : (rm_func, OPT_ARG, ""),
         'clf' : (clear_funcs, NO_ARG, ""),
         'llf' : (list_funcs, NO_ARG, ""),
