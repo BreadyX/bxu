@@ -1,3 +1,0 @@
-db-path     ./asdf1234/asfdda
-cache-path  ./asdgadg
-# Command: sed 's/\([[:graph:]]*\)[[:blank:]]*\([[:graph:]]*\)/\1|\2/g' conf
