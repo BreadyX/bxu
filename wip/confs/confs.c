@@ -30,7 +30,18 @@ int main(int argc, char** argv)
     opterr = 0; // turnoff getopt error
     if (argc == 1)
         return 1;
-    while (arg_ev < argc) { // TODO: Implementargument checking
+    while (arg_ev < argc) {
+        getopt_return = getopt(argc, argv, OPTSTRING);
+        switch(getopt_return) {
+            case 'h':
+                printf("Help\n");
+                break;
+            case '?':
+                return 1;
+            default:
+                return 0;
+        }
+        /* printf("%d %c\n", getopt_return, getopt_return); */
         arg_ev++;
     }
 
