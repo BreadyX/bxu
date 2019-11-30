@@ -1,18 +1,11 @@
 #! /usr/bin/env python3
 """interactive c"""
 from sys import argv
-import os
-import getopt
-import subprocess
-import tempfile
 from shutil import copyfile
+import getopt, os, subprocess, tempfile
 import shlex
 
 VERSION = '1.0.0'
-
-WELCOME_STR = "Welcome! Type '{}' for help."
-GOODBY_STR = "Goodbye!"
-CMD_ERR = "Invalid command '{}', see {} for more info"
 
 SHORT_OPTS = 'hv'
 LONG_OPTS = ('help', 'version')
@@ -24,6 +17,7 @@ Options:
 \t-h, --help      Display this message
 \t-v, --version   Display info on program version
 
+<<<<<<< HEAD
 Command prompt:'''
 VERS_MSG = '''{} - BreadyX's Utils (BXU). Version {}
 Written by BreadyX, contacts (for bug reports and other):
@@ -32,10 +26,18 @@ Written by BreadyX, contacts (for bug reports and other):
 STD_H = ('<stdio.h>', '<stdlib.h>')
 STD_F = (["int main(int argc, char **argv)", 'return 0;'],)
 
-ALIVE = 1
-CMDS = 2
-USER_INPUT = 3
-USER_COMMAND = 4
+### CMD argument
+NO_ARG = 0
+OPT_ARG = 1
+ARG = 2
+
+### Error messages
+CMD_ERR_STR = "Invalid command '{}', see {} for more info"
+CMD_INV_ARG = "Invalid argument {}"
+CMD_INV_IND = "Invalid index"
+CMD_NO_ARG = "No argument given"
+
+### Context access
 USER_ARGUMENT = 5
 HEADERS = 6
 MACROS = 7
@@ -48,132 +50,28 @@ PROMPT_MOD = '*> '
 
 C_SKEL = "{}\n{}\n{}\n{}\n{}\n"
 
-def main(args):
-    """main"""
-    context = {ALIVE: True,
-               CMDS: {'?'   : help_dialog,
-                      'help': help_dialog,
-                      'exit': exit_program,
-                      'quit': exit_program,
+CMDS = {}  # Initialized before main after all function declarations
 
-                      'addh': add_header,
-                      'rmh' : rm_header,
-                      'modh': mod_header,
-                      'clh' : clear_headers,
-                      'llh' : list_headers,
-
-                      'defm': add_macro,
-                      'rmm' : rm_macro,
-                      'modm': mod_macro,
-                      'clm' : clear_macros,
-                      'llm' : list_macros,
-
-                      'addg': add_global,
-                      'rmg' : rm_global,
-                      'modg': mod_global,
-                      'clg' : clear_globals,
-                      'llg' : list_globals,
-
-                      'deff': add_func,
-                      'rmf' : rm_func,
-                      'clf' : clear_funcs,
-                      'llf' : list_funcs,
-
-                      'prev': preview,
-                      'exp' : export,
-                      'chk' : check,
-                      'exec': execute,},
-               USER_INPUT: '',
-               USER_COMMAND: '',
-               USER_ARGUMENT: '',
-               HEADERS: [],
-               MACROS: [],
-               GLOBALS: [],
-               FUNCTIONS: [],}
-    # INIT
-    clear_list(context[HEADERS], STD_H)
-    clear_list(context[FUNCTIONS], STD_F)
-    # Parse argv
-    try:
-        opts, _ = getopt.getopt(args[1:], SHORT_OPTS, LONG_OPTS)
-        for opt, _ in opts:
-            if opt in ('-h', '--help'):
-                print_help(context, os.path.basename(args[0]))
-                exit_program(context)
-            elif opt in ('-v', '--version'):
-                print_version(os.path.basename(args[0]))
-                exit_program(context)
-            else:
-                print(f'Invalid option {opt}')
-                exit_program(context)
-    except getopt.GetoptError as err:
-        print(str(err))
-        exit_program(context)
-    if context[ALIVE]:
-        # Greet
-        print(WELCOME_STR.format('?'))
-        # Loop and prompt and exec
-        while context[ALIVE]:
-            prompt(context)
-            if context[USER_INPUT]:
-                context[USER_COMMAND] = context[USER_INPUT].split(sep=' ')[0]
-                context[USER_ARGUMENT] = context[USER_INPUT][len(context[USER_COMMAND]):].strip()
-                cmd_func = context[CMDS].get(context[USER_COMMAND], None)
-                try:
-                    cmd_func(context)
-                except TypeError:
-                    print(CMD_ERR.format(context[USER_COMMAND], '?'))
-        # Greet
-        print(GOODBY_STR)
-
-def prompt(context):
+### UTILITY
+def get_user_input(prompt=PROMPT_STD):
     """Draw prompt"""
     try:
-        context[USER_INPUT] = input(PROMPT_STD).strip()
+        return input(prompt).strip()
     except EOFError:
         print()  # Maintain good alignment
-        exit_program(context)
-        context[USER_INPUT] = ''
-
-def print_help(context, program_name):
-    """Print help message"""
-    print(HELP_MSG.format(program_name))
-    cmds = help_dialog(context, False)
-    for line in cmds.splitlines():
-        print("\t" + line)
-    print()  # Spacing
-
-def print_version(program_name):
-    """Print version info"""
-    print(VERS_MSG.format(program_name, VERSION))
-
-def help_dialog(context, print_lines=True):
-    """Print information about commands"""
-    doc = ''
-    out = "Usage: command argument\nCommands:\n"
-    for cmd in context[CMDS]:
-        doc = 'N.A.' if not context[CMDS][cmd].__doc__ else context[CMDS][cmd].__doc__
-        out += f'\t{cmd}\t\t{doc}\n'
-    if print_lines:
-        print(out)
-    return out
-
-def exit_program(context):
-    """Quits program"""
-    context[ALIVE] = False
+        return None
 
 def add_to(the_list, arg):
     """Add to index in context"""
+    print("Using dprecated add_to")
     if arg not in the_list:
         the_list.append(arg)
-    else:
-        print("Already present")
 
-def rm_form_with_prompt(the_list, item_is_list=False, item_index=0):
+def rm_from_with_prompt(the_list, item_is_list=False, item_index=0):
     """Remove user-chosen item from list"""
     pos = choose_between(the_list, item_is_list, item_index)
     if pos == -1:
-        print("Invalid selection")
+        print(CMD_INV_IND)
         return
     the_list.pop(pos)
 
@@ -182,9 +80,9 @@ def mod_in_with_prompt(the_list):
     pos = choose_between(the_list)
     new = ''
     if pos == -1:
-        print("Invalid selection")
+        print(CMD_INV_IND)
         return
-    new = input(PROMPT_MOD)
+    new = get_user_input(PROMPT_MOD)
     the_list[pos] = new
 
 def clear_list(the_list, standard=None):
@@ -198,64 +96,141 @@ def clear_list(the_list, standard=None):
 def choose_between(the_list, is_list=False, item_index=0):
     """Print a list and let the user choose. Return the index of the chosen item"""
     user_in = None
+    print("Choose:")
     for i, val in enumerate(the_list):
         if is_list:
-            print(f'{i} {val[item_index]}')
+            print(f'{i}. {val[item_index]}')
         else:
-            print(f'{i} {val}')
+            print(f'{i}. {val}')
     try:
-        user_in = int(input(PROMPT_ASK))
+        user_in = int(get_user_input(PROMPT_ASK))
     except ValueError:
         return -1
     if (user_in < 0 or user_in >= len(the_list)):
         return -1
     return user_in
 
+### MISC
+def cmd_help(context):
+    """Print help str from CMD. If an argument is passed, then print help only
+    for that command"""
+    if context[USER_ARGUMENT]:
+        cmd = context[USER_ARGUMENT]
+        try:
+            usage = cmd
+            if CMDS[cmd][1] == OPT_ARG:
+                usage += ' [arg]'
+            elif CMDS[cmd][1] == ARG:
+                usage += ' arg'
+            doc = '...' if not CMDS[cmd][2] else CMDS[cmd][2]
+            print('%-12s%s\n%s' % ("Usage", "Description", 100 * '-'))
+            print(f'{usage:12}{doc}')
+        except KeyError:
+            print(CMD_INV_ARG.format(cmd))
+    else:
+        print("%-12s%s\n%s" % ("Command", "Description", 100 * '-'))
+        for cmd in CMDS:
+            doc = '...' if not CMDS[cmd][2] else CMDS[cmd][2]
+            print(f'{cmd:12}{doc}')
+
+def cmd_exit(_):
+    """Wrapper that launches SystemExit"""
+    raise SystemExit()
+
 ### HEADERS
 def add_header(context):
-    """Add argument to imported headers (<> and "" required)"""
-    add_to(context[HEADERS], context[USER_ARGUMENT])
+    """Add USER_ARGUMENT to HEADERS list"""
+    if context[USER_ARGUMENT]:
+        if context[USER_ARGUMENT] not in context[HEADERS]:
+            context[HEADERS].append(context[USER_ARGUMENT])
+    else:
+        print(CMD_NO_ARG)
 
 def rm_header(context):
-    """Remove specified header"""
-    rm_form_with_prompt(context[HEADERS])
+    """Pop header of specified index (taken from USER_ARGUMENT or
+    choose_between()) from HEADERS"""
+    chosen = 0
+    if not context[USER_ARGUMENT]:
+        rm_from_with_prompt(context[HEADERS])
+    else:
+        try:
+            chosen = int(context[USER_ARGUMENT])
+            context[HEADERS].pop(chosen)
+        except (TypeError, IndexError):
+            print(CMD_INV_ARG.format(chosen))
 
 def mod_header(context):
-    """Modify one of the defined headers"""
-    mod_in_with_prompt(context[HEADERS])
+    """Modify header of specified index (taken from USER_ARGUMENT or
+    choose_between()) from HEADERS by replacing it with a new input"""
+    chosen = 0
+    if not context[USER_ARGUMENT]:
+        mod_in_with_prompt(context[HEADERS])
+    else:
+        try:
+            chosen = int(context[USER_ARGUMENT])
+            context[HEADERS][chosen] = get_user_input(PROMPT_MOD)
+        except (TypeError, IndexError):
+            print(CMD_INV_ARG.format(chosen))
 
 def clear_headers(context):
-    """Reset all headers to standard"""
+    """Reset HEADERS to STD_H"""
     clear_list(context[HEADERS], STD_H)
 
 def list_headers(context):
-    """List all added headers"""
-    print("Defined headers:")
-    for header in context[HEADERS]:
-        print(f'\t#include {header}')
+    """Print contents of HEADERS"""
+    out = ''
+    for i, header in enumerate(context[HEADERS]):
+        out = f'{i}.'
+        if header in STD_H:
+            out += ' * '
+        else:
+            out += '   '
+        out += f'#include {header}'
+        print(out)
 
 ### MACROS
 def add_macro(context):
-    """Define macro matching the argument (multiline not supported)"""
-    add_to(context[MACROS], context[USER_ARGUMENT])
+    """Add argument to list of defined macros"""
+    if context[USER_ARGUMENT]:
+        if context[USER_ARGUMENT] not in context[MACROS]:
+            context[MACROS].append(context[USER_ARGUMENT])
+    else:
+        print(CMD_NO_ARG)
 
 def rm_macro(context):
-    """Remove specified macro"""
-    rm_form_with_prompt(context[MACROS])
+    """Pop macro of specified index (taken from USER_ARGUMENT or
+    choose_between()) from MACROS"""
+    chosen = 0
+    if not context[USER_ARGUMENT]:
+        rm_from_with_prompt(context[MACROS])
+    else:
+        try:
+            chosen = int(context[USER_ARGUMENT])
+            context[MACROS].pop(chosen)
+        except (TypeError, IndexError):
+            print(CMD_INV_ARG.format(chosen))
 
 def mod_macro(context):
-    """Modify one of the defined macros"""
-    mod_in_with_prompt(context[MACROS])
+    """Modify macro of specified index (taken from USER_ARGUMENT or
+    choose_between()) from MACROS by replacing it with a new input"""
+    chosen = 0
+    if not context[USER_ARGUMENT]:
+        mod_in_with_prompt(context[MACROS])
+    else:
+        try:
+            chosen = int(context[USER_ARGUMENT])
+            context[MACROS][chosen] = get_user_input(PROMPT_MOD)
+        except (TypeError, IndexError):
+            print(CMD_INV_ARG.format(chosen))
 
 def clear_macros(context):
-    """Delete all user defined macros"""
+    """Reset MACROS"""
     clear_list(context, MACROS)
 
 def list_macros(context):
-    """List all added macros"""
-    print("Defined macros:")
-    for macro in context[MACROS]:
-        print(f'\t#define {macro}')
+    """Print contents of MACROS"""
+    for i, macro in enumerate(context[MACROS]):
+        print(f'{i}. #define {macro}')
 
 # GLOBALS
 def add_global(context):
@@ -264,7 +239,7 @@ def add_global(context):
 
 def rm_global(context):
     """Remove specified global"""
-    rm_form_with_prompt(context[GLOBALS])
+    rm_from_with_prompt(context[GLOBALS])
 
 def mod_global(context):
     """Modify one of the defined globals"""
@@ -322,7 +297,7 @@ def add_func(context):
 
 def rm_func(context):
     """Remove specified global"""
-    rm_form_with_prompt(context[FUNCTIONS], True, 0)
+    rm_from_with_prompt(context[FUNCTIONS], True, 0)
 
 def clear_funcs(context):
     """Reset all functions to standard"""
@@ -374,9 +349,7 @@ def merge(headers, macros, globs, functions):
 
 def build(doc, delete=False):
     """Compiles specified C file and returns the executable path"""
-    compiled = ''
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmp:
-        compiled = tmp.name
+    _, compiled = tempfile.mkstemp()
     try:
         subprocess.run(['gcc', '-Wall', '-x', 'c', doc, '-o', compiled], check=True)
     except subprocess.CalledProcessError as error:
@@ -387,22 +360,15 @@ def build(doc, delete=False):
         compiled = ''
     return compiled
 
-def run(out, *args):
-    """Runs specified executable"""
-    try:
-        subprocess.run((out,) + args, check=True)
-    except subprocess.CalledProcessError as error:
-        print(f'Program encountered a problem: {str(error)}')
-
 def execute(context):
     """Build and execute resulting file passing argument"""
     doc = merge(context[HEADERS], context[MACROS], context[GLOBALS],
                 context[FUNCTIONS])
     try:
         out = build(doc)
-        run(out, *shlex.split(context[USER_ARGUMENT]))
-    except subprocess.CalledProcessError:
-        print("Error has occured during building or runtime of program")
+        subprocess.run((out,) + shlex.split(context[USER_ARGUMENT]), check=True)
+    except subprocess.CalledProcessError as error:
+        print(f'Error has occurred: {str(error)}')
     os.remove(doc)
     os.remove(out)
 
@@ -433,8 +399,98 @@ def export(context):
         print("Error during export:", str(err))
     os.remove(doc)
 
+### CMDS
+CMDS = {'?'   : (cmd_help, OPT_ARG,
+                 "Print this dialog. If argument is given print help only for that"),
+        'quit': (cmd_exit, NO_ARG, "Quit program"),
+
+        'addh': (add_header, ARG,
+                 "Add argument to the list of headers (#include MUST NOT be included)"),
+        'rmh' : (rm_header, OPT_ARG,
+                 "Remove header with index argument. If no index is given,"
+                 "a prompt will ask for one"),
+        'modh': (mod_header, OPT_ARG,
+                 "Modify header with index argument. If no index is given,"
+                 "a prompt will ask for one"),
+        'clh' : (clear_headers, NO_ARG, "Remove all user-added headers"),
+        'llh' : (list_headers, NO_ARG,
+                 "List all added headers. Headers with '*' are standard"),
+
+        'addm': (add_macro, ARG,
+                 "Add argument to the list of macros (#define MUST NOT be included)"),
+        'rmm' : (rm_macro, OPT_ARG,
+                 "Remove macro with index argument. If no index is given,"
+                 "a prompt will ask for one"),
+        'modm': (mod_macro, OPT_ARG,
+                 "Modify macro with index argument. If no index is given,"
+                 "a prompt will ask for one"),
+        'clm' : (clear_macros, NO_ARG, "Remove all user-added macros"),
+        'llm' : (list_macros, NO_ARG, "List all added macros"),
+
+        'addg': (add_global, ARG, ""),
+        'rmg' : (rm_global, OPT_ARG, ""),
+        'modg': (mod_global, OPT_ARG, ""),
+        'clg' : (clear_globals, NO_ARG, ""),
+        'llg' : (list_globals, NO_ARG, ""),
+
+        'def' : (add_func, ARG, ""),
+        'rmf' : (rm_func, OPT_ARG, ""),
+        'clf' : (clear_funcs, NO_ARG, ""),
+        'llf' : (list_funcs, NO_ARG, ""),
+
+        'prev': (preview, NO_ARG, ""),
+        'exp' : (export, NO_ARG, ""),
+        'chk' : (check, NO_ARG, ""),
+        'exec': (execute, NO_ARG, ""),}
+
+### MAIN
+def main(args):
+    """main"""
+    context = {USER_ARGUMENT: '',
+               HEADERS: [],
+               MACROS: [],
+               GLOBALS: [],
+               FUNCTIONS: [],}
+    alive = True
+    user_input = ''
+    split_user_input = ''
+
+    # INIT
+    clear_list(context[HEADERS], STD_H)
+    clear_list(context[FUNCTIONS], STD_F)
+    # Parse argv
+    try:
+        opts, _ = getopt.getopt(args[1:], SHORT_OPTS, LONG_OPTS)
+        for opt, _ in opts:
+            if opt in ('-h', '--help'):
+                print(HELP_MSG.format(os.path.basename(args[0])))
+                return  # Program exit if --help
+            if opt in ('-v', '--version'):
+                print(VERS_MSG.format(os.path.basename(args[0]), VERSION))
+                return  # Program exit if --version
+            else:
+                print(f'Invalid option {opt}')
+    except getopt.GetoptError as err:
+        print(str(err))
+        return  # Program exit if generic GetoptError
+
+    # Loop, prompt, exec
+    while alive:
+        user_input = get_user_input(PROMPT_STD)
+        if user_input:
+            split_user_input = shlex.split(user_input)
+            try:
+                cmd_func = CMDS.get(split_user_input[0], None)[0]
+            except TypeError:
+                print(CMD_ERR_STR.format(split_user_input[0], '?'))
+                continue
+            context[USER_ARGUMENT] = ' '.join(split_user_input[1:])
+            cmd_func(context)
+        elif user_input is None:
+            alive = False
+
 if __name__ == '__main__':
     try:
         main(argv)
     except KeyboardInterrupt:
-        pass
+        print()  # good alignment
