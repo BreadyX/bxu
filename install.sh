@@ -1,6 +1,7 @@
 #!/bin/sh -e
 
 INSTALLDIR="$HOME/.local/bin"
+PROJS="clean confs git-hud ic laptop-stuff"
 
 # Parse arguments
 case "$1" in
@@ -30,15 +31,33 @@ read -r i
 
 # Check for directory
 [ -d "$INSTALLDIR" ] || {
-	printf "Directory %s doesn't exists. Please first create it and then try reinstalling." "$INSTALLDIR"
+	printf "Directory %s doesn't exists. Please create it\n" "$INSTALLDIR"
 	exit 1
 }
 
+# Loop projects and run `setup.sh` in a subshell
+for proj in $PROJS; do
+    printf "Installing '%s':\n" "$proj"
+    if [ -d "$proj" ]; then
+        if [ -f "$proj/setup.sh" ]; then
+            (
+                cd "$proj"
+                sh setup.sh "$INSTALLDIR" | fold | sed 's/^/\t/'
+            )
+        else
+            printf "\tMissing setup for project '%s'. Please file an issue\n" "$proj"
+        fi
+    else
+        printf "\tMissing project '%s'. Please file an issue\n" "$proj"
+    fi
+    printf "\n"
+done
+
 # get files
-files="$(find ./utils/ -type f | tr "\n" " ")"
+# files="$(find ./utils/ -type f | tr "\n" " ")"
 
 # Make file executables if they are not
-chmod +x $files
+# chmod +x $files
 
 # Copy files to INSTALLDIR
-cp -ui $files "$INSTALLDIR"
+# cp -ui $files "$INSTALLDIR"
