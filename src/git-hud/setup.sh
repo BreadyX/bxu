@@ -1,7 +1,7 @@
 #! /bin/sh
 # To be sourced by `install.sh`. First argument is INSTALLDIR
 
-cp -u ./git-hud "$1/" || {
+cp -u ./git-hud "$1/" >/dev/null 2>&1|| {
     echo "ERROR: couldn't copy file: have you checked permissions?"
     exit 1
 }
