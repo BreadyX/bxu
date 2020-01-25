@@ -4,7 +4,7 @@
 # current directory.
 
 # Program info
-VERSION="1.3.0"
+VERSION="1.3.1"
 SYNTAX="Usage: git-hud [ OPTION ]"
 DESCRIPTION="Format a quick summary about the current git repository and print it to standard output.
 If environment variable GIT_HUD_GLYPH is set, the script will use fontawesome glyphs."
@@ -40,15 +40,19 @@ prompt() {
     REPOINFO="$(git status --porcelain --branch)"
     # Get branch info
     FIRSTLINE="$(echo "$REPOINFO" | head -n 1)"
-    BRANCH="$(echo "$FIRSTLINE" | cut -f2 -d' ')"
-    if [ "$BRANCH" = "HEAD" ]; then
-        BRANCH="HEAD" AHEAD="" BEHIND=""
+    if [ "$FIRSTLINE" = "## No commits yet on master" ]; then
+        BRANCH='master' AHEAD='' BEHIND=''
     else
-        BRANCH="$(echo "$BRANCH" | sed 's/\.\.\./\t/g' | cut -f1)"
-        AHEAD="$(echo "$FIRSTLINE" | awk '{print substr($4, 1, 4)}' | cut -f1 -d']')"
-        [ "$AHEAD" = '' ] && AHEAD='0'
-        BEHIND="$(echo "$FIRSTLINE" | awk '{print substr($6, 1, 4)}' | cut -f1 -d']')"
-        [ "$BEHIND" = '' ] && BEHIND='0'
+        BRANCH="$(echo "$FIRSTLINE" | cut -f2 -d' ')"
+        if [ "$BRANCH" = "HEAD" ]; then
+            BRANCH="HEAD" AHEAD="" BEHIND=""
+        else
+            BRANCH="$(echo "$BRANCH" | sed 's/\.\.\./\t/g' | cut -f1)"
+            AHEAD="$(echo "$FIRSTLINE" | awk '{print substr($4, 1, 4)}' | cut -f1 -d']')"
+            [ "$AHEAD" = '' ] && AHEAD='0'
+            BEHIND="$(echo "$FIRSTLINE" | awk '{print substr($6, 1, 4)}' | cut -f1 -d']')"
+            [ "$BEHIND" = '' ] && BEHIND='0'
+        fi
     fi
     # Get latest commit
     if [ "$(cut -f1 -d' ' "$1/.git/HEAD")" = 'ref:' ]; then
