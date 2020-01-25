@@ -1,4 +1,8 @@
 .directory
 [Dd]eprecated/
+
 # pycharm stuff
 .idea/
+
+# meson build dir
+meson-build/
