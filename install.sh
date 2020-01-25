@@ -48,8 +48,7 @@ for proj in $PROJS; do
         if [ -f "$proj_dir/setup.sh" ] && [ -x "$proj_dir/setup.sh" ]; then
             ( cd "$proj_dir"
               sh setup.sh "$INSTALLDIR" | fold | sed 's/^/\t/'
-            ) || { printf "\tError in setup of %s\n" "$proj"; $((ERRORS++)); }
-              && printf "\tDone\n"
+            ) || { printf "\tError in setup of %s\n" "$proj"; $((ERRORS++)); } && printf "\tDone\n"
         else
             printf "\tMissing setup for project '%s'. Please file an issue\n" "$proj"
         fi
