@@ -4,5 +4,7 @@
 # pycharm stuff
 .idea/
 
-# meson build dir
+# Build system
 meson-build/
+build/
+compile_commands.json
