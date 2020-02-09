@@ -1,0 +1,19 @@
+# Comment
+
+# Whitespaces separates things, escape with '\'.
+# Number of whitespaces is irrelevant.
+
+db_dir		~/bconf_db		# directory with backups and things used by bconf
+							# default is $HOME/.local/share/bconf
+chunk_size	256				# zlib stuff
+
+--- files
+# Maps config files to certain nicknames
+# Nick cannot contain ; and whitespace
+important_config1	/etc/program/config.conf
+important_config2	/etc/program/other_config.conf
+
+# To be considered
+# Groups group various files for easier access
+--- groups
+program		improtant_config1;important_config2
