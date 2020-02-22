@@ -1,0 +1,38 @@
+SNAP
+	1. eval cmd
+	2. eval configs (override)
+	3. if group:
+		3.1. for each file in group diff with last snaphot
+		3.2. if different create new snap
+	4. if not group:
+		4.1. diff with last snap
+		4.2. if different create new snap
+
+RESTORE
+	1. eval cmd
+	2. eval configs (override)
+	3. if group:
+		3.1. for each file unpack snapshot to tmp
+		3.2. replace each file
+	4. if not group:
+		4.1. unpack snapshot to tmp
+		4.2. replace
+
+SNAPSHOT LAYOUT:
+	Compressed archive with 2 files:
+		1. 'data': contains date and time + diff
+		2. file
+
+DB LAYOUT:
+	Each nick has his own directory. In the directory reside the snapshots. Each
+	snapshot has the hash of its corresponding file as its filename.
+	The directory also contains a 'history' file containing an ordered list of
+	each snapshot (oldest first).
+	Example:
+	db_dir
+	\- file1
+	| \- history
+	| \- [ snapshots... ]
+	\- file2
+		- history
+		- [ snapshots... ]

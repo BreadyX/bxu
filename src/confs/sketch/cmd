@@ -1,0 +1,12 @@
+bsnap
+	--help
+	--version
+	--config config_path
+	--db_path db_path
+	snap [ nick/group ]
+	restore nick/group [ snap ]
+	db
+		--clean
+		--list
+		--hist nick
+		--show nick

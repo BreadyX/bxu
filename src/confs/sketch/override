@@ -1,0 +1,4 @@
+Config search locations:
+	1. /etc/bsnap/bsnap.conf
+	2. $HOME/.config/bsnap/bsnap.conf
+	4. cmd

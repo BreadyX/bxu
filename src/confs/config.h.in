@@ -1,0 +1,12 @@
+#ifndef CONFIG_H	// CONFIG_H
+#define CONFIG_H
+
+#define NAME	"@name@"
+#define VERSION	"@version@"
+
+#define CONFIG_SEARCH "/etc/@name@/@name@.conf:~/.config/@name@/@name@.conf"
+char DB_DIR[256] = "~/.local/share/@name@";
+int  CHUNK_SIZE = 16384;
+
+#endif
+

@@ -1,4 +1,10 @@
 .directory
 [Dd]eprecated/
+
 # pycharm stuff
 .idea/
+
+# Build system
+meson-build/
+build/
+compile_commands.json
