@@ -1,0 +1,145 @@
+#! /usr/bin/env python3
+
+import os
+import sys
+import argparse
+import subprocess
+import re
+
+NAME = "@name@"
+VERSION = "@version@"
+DESCRIPTION = ("Format a quick summary about the current git repository and "
+			   "print it to standard output.\n")
+EPILOG = ("If the environment variable GIT_HUD_GLYPH is set, the script will "
+		  "use unicode glyphs. The variable is, however, ignored if a tty is "
+		  "used.")
+VERSION_DIALOG = ("{} - BreadyX's utils (BXU). Version {}\n"
+				  "Written by BreadyX, contacts (for bug reports and other):\n"
+				  "\tGitHub repo (BXU):  https://github.com/BreadyX/bxu")
+VERSION_HELP = "show info about version"
+
+if ('GIT_HUD_GLYPH' in os.environ) and (not os.environ['TERM'] == 'linux'):
+	BRANCH_GLYPH = ''
+else:
+	BRANCH_GLYPH = '|'
+AHEAD_GLYPH = '↑'
+BEHIND_GLYPH = '↓'
+
+EMPTY_REPO = "## No commits yet on master"
+
+def setup_args():
+	parser = argparse.ArgumentParser(prog=NAME, description=DESCRIPTION,
+									 epilog=EPILOG)
+	parser.add_argument('-v', '--version', action='store_true',
+						help=VERSION_HELP)
+	return parser.parse_args()
+
+def get_root_dir():
+	proc = subprocess.run(["git", "rev-parse", "--show-toplevel"], text=True,
+						  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+	if (proc.returncode != 0):
+		return None
+	return (proc.stdout).strip();
+
+def get_repo_info():
+	proc = subprocess.run(["git", "status", "--porcelain", "--branch"],
+						  text=True, stdout=subprocess.PIPE,
+						  stderr=subprocess.STDOUT)
+	if (proc.returncode != 0):
+		return None
+	return (proc.stdout).strip()
+
+def get_branch(repo_info):
+	first_line = repo_info.splitlines()[0]
+	branch = ""
+	if first_line == EMPTY_REPO:
+		return "???"
+	branch = first_line.split()[1]  # ex: branch...origin
+	branch = branch.split("...")[0] # ex: branch
+	return branch
+
+def get_ahead_behind(repo_info): 
+	ahead = 0
+	behind = 0
+	first_line = repo_info.splitlines()[0]
+	ahead_behind_match = re.search('\[.*\]', first_line) # [ahead 1 behind 1]
+	if ahead_behind_match is None:
+		return ahead, behind
+	ahead_behind_str = ahead_behind_match.group(0)
+	ahead_match = re.search('(?<=ahead) +[0-9]', ahead_behind_str) # ' 1'
+	behind_match = re.search('(?<=behind) +[0-9]', ahead_behind_str) # ' 1'
+	if ahead_match is not None:
+		ahead_str = ahead_match.group(0).strip()
+		ahead = int(ahead_str)
+	if behind_match is not None:
+		behind_str = behind_match.group(0).strip()
+		behind = int(behind_str)
+	return ahead, behind
+
+def get_latest_commit():
+	proc = subprocess.run(["git", "rev-parse", "HEAD"], text=True,
+						  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+	if (proc.returncode != 0):
+		return '???'
+	return proc.stdout.strip()[0:7]
+
+def get_unstaged(repo_info):
+	unstaged = re.findall("(?m)^ *[DMAR]", repo_info)
+	if (unstaged):
+		return '*'
+	return ''
+
+def get_untracked(repo_info):
+	untracked = re.findall('(?m)^\?\?', repo_info)
+	if (untracked):
+		return '?'
+	return ''
+
+def get_unmerged(repo_info):
+	unmerged = re.findall('(?m)^UU', repo_info)
+	if (unmerged):
+		return '!'
+	return ''
+
+def get_stashed(git_root_dir):
+	stash_location = os.path.join(git_root_dir, '.git/refs/stash')
+	if (os.path.isfile(stash_location)):
+		return '$'
+	return ''
+
+def construct_prompt(root_dir):
+	repo_info = get_repo_info()
+	if repo_info is None:
+		return ""
+
+	branch = get_branch(repo_info)
+	ahead, behind = get_ahead_behind(repo_info)
+	latest_commit = get_latest_commit()
+	unstaged = get_unstaged(repo_info)
+	untracked = get_untracked(repo_info)
+	unmerged = get_unmerged(repo_info)
+	stashed = get_stashed(root_dir)
+	
+	prompt = (f'[{BRANCH_GLYPH} {branch} ({latest_commit});'
+			  f' {AHEAD_GLYPH}{ahead} {BEHIND_GLYPH}{behind};'
+			  f' ({unstaged}{untracked}{unmerged}{stashed})]')
+	return prompt
+
+def main():
+	args = setup_args()
+	if (args.version is True):
+		print(VERSION_DIALOG.format(NAME, VERSION))
+		exit()
+	
+	git_dir = get_root_dir()
+	if (git_dir is None):
+		exit()
+	prompt = construct_prompt(git_dir)
+	print(prompt)
+	exit()
+
+if __name__ == '__main__':
+	try:
+		main()
+	except KeyboardInterrupt:
+		pass
