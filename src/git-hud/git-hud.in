@@ -20,10 +20,12 @@ VERSION_HELP = "show info about version"
 
 if ('GIT_HUD_GLYPH' in os.environ) and (not os.environ['TERM'] == 'linux'):
 	BRANCH_GLYPH = ''
+	AHEAD_GLYPH = '↑'
+	BEHIND_GLYPH = '↓'
 else:
-	BRANCH_GLYPH = '|'
-AHEAD_GLYPH = '↑'
-BEHIND_GLYPH = '↓'
+	BRANCH_GLYPH = 'branch'
+	AHEAD_GLYPH = 'ahead '
+	BEHIND_GLYPH = 'behind '
 
 EMPTY_REPO = "## No commits yet on master"
 
