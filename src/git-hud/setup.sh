@@ -1,12 +1,12 @@
-#! /bin/sh
-# To be sourced by `install.sh`. First argument is INSTALLDIR
+# Called by `install.sh`.
+# First argument is INSTALLDIR, cwd is ./src/git-hud
 
-cp -u ./git-hud "$1/" >/dev/null 2>&1|| {
-    echo "ERROR: couldn't copy file: have you checked permissions?"
-    exit 1
-}
+prefix="$(dirname $1)"
+if [ -d './meson-build' ]; then
+	meson "./meson-build" --reconfigure --prefix="$prefix"
+else
+	meson "./meson-build" --prefix="$prefix"
+fi
 
-### If user has write permissions (checked previously) he can also change
-### properties
-chmod +x "$1/git-hud"
+ninja -C "./meson-build" install
 
