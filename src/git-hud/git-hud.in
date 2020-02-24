@@ -68,8 +68,8 @@ def get_ahead_behind(repo_info):
 	if ahead_behind_match is None:
 		return ahead, behind
 	ahead_behind_str = ahead_behind_match.group(0)
-	ahead_match = re.search('(?<=ahead) +[0-9]', ahead_behind_str) # ' 1'
-	behind_match = re.search('(?<=behind) +[0-9]', ahead_behind_str) # ' 1'
+	ahead_match = re.search('(?<=ahead) +[0-9]+', ahead_behind_str) # ' 1'
+	behind_match = re.search('(?<=behind) +[0-9]+', ahead_behind_str) # ' 1'
 	if ahead_match is not None:
 		ahead_str = ahead_match.group(0).strip()
 		ahead = int(ahead_str)
