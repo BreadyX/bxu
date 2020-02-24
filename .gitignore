@@ -4,6 +4,9 @@
 # pycharm stuff
 .idea/
 
+# clangd
+.clangd/
+
 # Build system
 meson-build/
 build/
