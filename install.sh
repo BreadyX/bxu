@@ -13,9 +13,9 @@ DOC="install.sh [ OPTIONS ]
 Installs the BreadyX's Utils.
 
 Options:
-    -p, --prefix=PATH      Use this install directory instead of default
-	-x, --exclude=PROJ  Do not install these projects (comma separated)
-	-l, --list			List all installable projects and exit
+    -p, --prefix=PATH   Use this install directory instead of default
+    -x, --exclude=PROJ  Do not install these projects (comma separated)
+    -l, --list          List all installable projects and exit
     -h, --help          Display this message and exit"
 
 RED="$(tput setaf 1)"
