@@ -10,7 +10,7 @@ can be found in the respective directories.
 Every program requires the **meson build system**.
 
 The dependencies marked in **bold** are build time dependencies
-| Utility      | Dependency            |
+| Project      | Dependency            |
 |--------------|-----------------------|
 | git-hud      | python3, git          |
 | ic           | python3, gcc          |
