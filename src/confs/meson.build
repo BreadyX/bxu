@@ -1,8 +1,12 @@
-project('bsnap',
-		'c',
+project('bsnap', 'c',
 		version: '0.0.1')
 
-src = ['main.c']
+src = ['main.c',
+	   './snap/snap-action.c', # debug
+	   # TODO
+	  ]
+
+subdir('./cmd')
 
 # Configure config.h
 config_h = configuration_data()

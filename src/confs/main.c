@@ -1,49 +1,72 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
 #include <string.h>
-#include <getopt.h>
+#include <stdbool.h>
 
 #include "config.h"
+#include "cmd/cmd.h"
 
-#define FIRST_LEVEL_CMD "+:hvc:d:"
+#include "snap/snap-action.h"
+// TODO: other actions
 
-int main(int argc, char** argv)
+static b_command commands[] = {
+	{ "snap", "snap", snap_eval },
+	{ "restore", "restore", NULL },
+	{ "list", "list", NULL },
+	{ "show", "show", NULL },
+	{ 0 }
+};
+
+bool opt_help;
+bool opt_version;
+static b_option base_options[] = {
+	{ "help", 'h', "Show help", ARG_NONE, &opt_help, NULL },
+	{ "version", 'V', "Show version", ARG_NONE, &opt_version, NULL },
+	{ 0 }
+};
+
+void do_base(void);
+
+int main(int argc, char **argv)
 {
-	int opt;
+	b_cmd_context *main_context;
+	b_command found_command = {0};
 	
-	opterr = 0; // no error output
-	while ((opt = getopt(argc, argv, FIRST_LEVEL_CMD)) != -1) {
-		switch (opt) {
-			case 'h': printf("Help\n"); return 0;
-			case 'v': printf("Version\n"); return 0;
-			case 'c': printf("Using config %s\n", optarg); break;
-			case 'd': printf("Using db path %s\n", optarg); break;
-			case '?': printf("Invalid option %c\n", optopt); return 1;
-			case ':': printf("Missing argument from %c\n", optopt); return 1;
-		}
+	int status;
+	
+	errno = 0;
+	main_context = new_context(NAME, true);
+	if (!main_context)
+		return errno;
+	
+	push_commands(main_context, commands);
+	push_options(main_context, base_options);
+	
+	status = extract_command(main_context, &argc, argv, &found_command);
+	switch (status) {
+		case COMMAND_SUCCESS:
+			status = (found_command.handler)(argc, argv);
+			// check for status
+			return EXIT_SUCCESS;
+		case COMMAND_MISSING:
+			status = parse_options(main_context, &argc, argv);
+			if (status != OPT_SUCCESS) {
+				printf("Print help\n");
+				return EXIT_FAILURE;
+			}
+			do_base();
+			return EXIT_SUCCESS;
+		case COMMAND_INVALID:
+			printf("Print help\n");
+			return EXIT_FAILURE;
 	}
-	// arrived at second level: TODO optimize beacuse is shitty
-	printf("%d %d\n", optind, argc);
-	if (optind == argc) { // no action
-		printf("What do you want me to do?\n");
-		return 1;
-	}
-	if (strcmp(argv[optind], "snap") == 0) { //snap
-		if (argc - optind == 1)
-			printf("Snapping everything\n");
-		else
-			printf("Snapping %s\n", argv[optind + 1]);
-		return 0;
-	} else if (strcmp(argv[optind], "restore") == 0) { //restore
-		if (argc - optind == 1) {
-			printf("What do I restore?\n");
-			return 1;
-		} else if (argc - optind >= 2) { // is ok
-			printf("Restoring %s ", argv[optind + 1]);
-			if (argc - optind == 3)
-				printf("to %s", argv[optind + 2]);
-			printf("\n");
-			return 0;
-		}
-	}
+}
 
+void do_base(void)
+{
+	if (opt_help)
+		printf("Print help\n");
+	else if (opt_version)
+		printf("Print version\n");
 }
