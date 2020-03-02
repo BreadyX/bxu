@@ -122,9 +122,9 @@ def construct_prompt(root_dir):
 	unmerged = get_unmerged(repo_info)
 	stashed = get_stashed(root_dir)
 	
-	prompt = (f'[{BRANCH_GLYPH} {branch} ({latest_commit});'
+	prompt = (f'{BRANCH_GLYPH} {branch} ({latest_commit});'
 			  f' {AHEAD_GLYPH}{ahead} {BEHIND_GLYPH}{behind};'
-			  f' ({unstaged}{untracked}{unmerged}{stashed})]')
+			  f' ({unstaged}{untracked}{unmerged}{stashed})')
 	return prompt
 
 def main():

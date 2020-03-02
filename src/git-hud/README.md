@@ -41,5 +41,5 @@ Information shown:
 	- stashed changes ($)
 
 ## Example
-With `GIT_HUD_GLYPH` set: `[ master (7146799); ↑9 ↓2; (?)]`  
-Without `GIT_HUD_GLYPH` set: `[branch master (7146799); ahead 9 behind 0; (?)]`
+With `GIT_HUD_GLYPH` set: ` master (7146799); ↑9 ↓2; (?)`  
+Without `GIT_HUD_GLYPH` set: `branch master (7146799); ahead 9 behind 0; (?)`

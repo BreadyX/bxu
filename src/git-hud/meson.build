@@ -1,5 +1,5 @@
 project('git-hud',
-		version: '2.0.2')
+		version: '2.0.3')
 
 python = import('python')
 python_install = python.find_installation('python3')
