@@ -1,0 +1,91 @@
+#! /usr/bin/env python3
+
+import sys
+import os
+import math
+import argparse
+
+NAME = "@name@"
+VERSION = "@version@"
+DESCRIPTION = ("Format a quick summary about the cnarge of the battery, "
+			   "if available.")
+EPILOG = ("If the environment variable BAT_HUD_GLYPH is set, the script "
+		  "will use unicode glyphs. The variable is, however, ignored if a "
+		  "tty is used.")
+VERSION_DIALOG = ("{} - BreadyX's utils (BXU). Version {}\n"
+				  "Written by BreadyX, contacts (for bug reports and other):\n"
+				  "\tGitHub repo (BXU):  https://github.com/BreadyX/bxu")
+VERSION_HELP = "show info about version"
+
+if ('BAT_HUD_GLYPH' in os.environ) and (not os.environ['TERM'] == 'linux'):
+	BATTERY_FULL_GLYPH = ''
+	BATTERY_34_GLYPH = ''
+	BATTERY_HALF_GLYPH = ''
+	BATTERY_14_GLYPH = ''
+	BATTERY_LOW_GLYPH = ''
+	BATTERY_CHARGING_GLYPH = ''
+else:
+	BATTERY_GLYPH = BATTERY_34_GLYPH = BATTERY_HALF_GLYPH = \
+		BATTERY_14_GLYPH = BATTERY_LOW_GLYPH = 'Battery: '
+	BATTERY_CHARGING_GLYPH = 'Charging: '
+
+def main():
+	args = setup_args()
+	if (args.version is True):
+		print(VERSION_DIALOG.format(NAME, VERSION))
+		exit()
+
+	if not os.path.isdir('/sys/class/power_supply/BAT0'):
+		return
+
+	energy_full = get_energy_full()
+	energy_now = get_energy_now()
+	status = get_status()
+	bat_percent = math.floor((energy_now / energy_full) * 100)
+	if status == 'Charging':
+		print(f'{BATTERY_CHARGING_GLYPH} {bat_percent}%')
+	else:
+		if (bat_percent >= 75):
+			print(f'{BATTERY_FULL_GLYPH}  {bat_percent}%')
+		elif (bat_percent >= 50):
+			print(f'{BATTERY_34_GLYPH}  {bat_percent}%')
+		elif (bat_percent >= 15):
+			print(f'{BATTERY_HALF_GLYPH}  {bat_percent}%')
+		elif (bat_percent >= 3):
+			print(f'{BATTERY_14_GLYPH}  {bat_percent}%')
+		else:
+			print(f'{BATTERY_LOW_GLYPH}  {bat_percent}%')
+
+def setup_args():
+	parser = argparse.ArgumentParser(prog=NAME, description=DESCRIPTION,
+									 epilog=EPILOG)
+	parser.add_argument('-v', '--version', action='store_true',
+						help=VERSION_HELP)
+	return parser.parse_args()
+
+def get_energy_full():
+	try:
+		with open('/sys/class/power_supply/BAT0/energy_full') as f:
+			return int(f.read().strip())
+	except FileNotFoundError:
+		return 0
+
+def get_energy_now():
+	try:
+		with open('/sys/class/power_supply/BAT0/energy_now') as f:
+			return int(f.read().strip())
+	except FileNotFoundError:
+		return 0
+
+def get_status():
+	try:
+		with open('/sys/class/power_supply/BAT0/status') as f:
+			return f.read().strip()
+	except FileNotFoundError:
+		return "N.A."
+
+if __name__ == '__main__':
+	try:
+		main()
+	except KeyboardInterrupt:
+		pass
