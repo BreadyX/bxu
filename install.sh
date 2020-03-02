@@ -25,6 +25,11 @@ GRAY="$(tput setaf 250)"
 BOLD="$(tput bold)"
 RESET="$(tput sgr0)"
 
+if [ "$(id -u)" = 0 ]; then
+	printf "Program shouldn't be run as root. Permission will be asked if necessary\n"
+	exit 0
+fi
+
 ARGS=$(getopt -n "install.sh" -o "hlp:x:" -l "help,list,prefix:,exclude:" -- "$@")
 set -- $ARGS
 while true; do
@@ -51,16 +56,22 @@ while true; do
 done
 
 printf "The BreadyX utils (BXU) will be installed in %s\n" "$PREFIX/*"
-printf "Proceed? [Y/n]"
+printf "Proceed? [Y/n] "
 read -r i
 if [ "$(echo "$i" | tr "[:upper]" "[:lower]")" = "n" ]; then exit 0; fi
 
+set +e
 for proj in $PROJS; do
 	printf "\n"
 
-	# esoteric way to check is $proj is in EXCLUDE. This is necessary as bash's
-	# arrays are quite a PITA
-	if [ "$EXCLUDE" != "${EXCLUDE#$proj}" ]; then continue; fi
+	skip=0
+	for exclude in "${EXCLUDE[@]}"; do
+		if [ "$exclude" = "$proj" ]; then
+			skip=1
+			break;
+		fi
+	done
+	if [ "$skip" -eq 1 ]; then continue; fi
 
 	proj_dir="./src/$proj"
 	printf "%sInstalling %s:%s\n" "$BOLD" "$proj" "$RESET"
