@@ -22,7 +22,6 @@ glyphs. The variable is, however, ignored if a tty is used.
 ## Dependencies
 - meson
 - python3
-- git
 - fontawesome (if used with `BAT_HUD_GLYPH`)
 
 ## Use and Features
