@@ -98,7 +98,7 @@ def get_untracked(repo_info):
 	return ''
 
 def get_unmerged(repo_info):
-	unmerged = re.findall('(?m)^UU', repo_info)
+	unmerged = re.findall('(?m)^U[DMAR]', repo_info)
 	if (unmerged):
 		return '!'
 	return ''
