@@ -1,5 +1,5 @@
 project('bat-hud',
-		version: '1.0.0')
+		version: '1.0.1')
 
 python = import('python')
 python_install = python.find_installation('python3')
