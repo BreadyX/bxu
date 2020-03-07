@@ -1,3 +1,6 @@
+# IMPORTANT
+Every project inside here has been moved inside its own repo
+
 # BreadyX's Utilities (BXU)
 The BXU's are small programs, of various complexity, that I have written to make
 my life a little easier. The utilities are designed for a GNU/Linux system. 
